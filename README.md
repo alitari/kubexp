@@ -53,6 +53,8 @@ kubectl config set-credentials $KUBE_USER --token="$TOKEN"
 
 Go to [releases page](https://github.com/alitari/kubeexplorer/releases) and download the binary for your platform: 
 
+- windows:
+
 ### command line options
 
 Call `kubeexplorer -help`
