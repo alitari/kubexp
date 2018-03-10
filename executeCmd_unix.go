@@ -1,6 +1,6 @@
 // +build linux
 
-package kubeExplorer
+package kubexp
 
 import (
 	"bytes"

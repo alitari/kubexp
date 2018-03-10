@@ -1,4 +1,4 @@
-package kubeExplorer
+package kubexp
 
 import (
 	"errors"
@@ -221,7 +221,7 @@ func removeFactors(d, factor *big.Int) (result *big.Int, times int) {
 // * If q.Format is set to BinarySI and q.Amount represents a non-zero value between
 //   -1 and +1, it will be emitted as if q.Format were DecimalSI.
 // * Otherwise, if q.Format is set to BinarySI, frational parts of q.Amount will be
-//   rounded up. (1.1i becomes 2i.) 
+//   rounded up. (1.1i becomes 2i.)
 func (q *Quantity) Canonicalize() (string, Suffix) {
 	if q.Amount == nil {
 		return "0", ""

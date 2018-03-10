@@ -1,6 +1,6 @@
 // +build windows
 
-package kubeExplorer
+package kubexp
 
 import (
 	"bytes"

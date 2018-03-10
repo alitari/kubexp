@@ -1,6 +1,6 @@
 .vscode/
 *Result.json
-kubeExplorer.exe
+kubexp.exe
 *.log
 coverage.out
 vendor/

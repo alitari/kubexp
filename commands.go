@@ -1,4 +1,4 @@
-package kubeExplorer
+package kubexp
 
 import (
 	"fmt"

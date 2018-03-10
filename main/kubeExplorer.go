@@ -1,9 +1,9 @@
 package main
 
 import (
-	kc "github.com/alitari/kubeExplorer"
+	ke "github.com/alitari/kubexp"
 )
 
 func main() {
-	kc.Run()
+	ke.Run()
 }

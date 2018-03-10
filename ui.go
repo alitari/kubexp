@@ -1,4 +1,4 @@
-package kubeExplorer
+package kubexp
 
 import (
 	"time"
@@ -259,7 +259,7 @@ func Run() {
 func parseFlags() {
 	configFile = flag.String("config", filepath.Join(homeDir(), ".kube", "config"), "absolute path to the config file")
 	logLevel = flag.String("logLevel", "info", "verbosity of log output. Values: 'trace','info','warn','error'")
-	logFilePath = flag.String("logFile", "./kubeexplorer.log", "fullpath to log file, set empty ( -logFile='') if no logfile should be used")
+	logFilePath = flag.String("logFile", "./kubexp.log", "fullpath to log file, set empty ( -logFile='') if no logfile should be used")
 	flag.IntVar(&portforwardStartPort, "portForwardStartPort", 32100, "start of portforward range")
 	flag.Parse()
 }

@@ -1,9 +1,6 @@
-# KubeExplorer
+# kubexp
 
-[![CircleCI](https://circleci.com/gh/alitari/kubeexplorer.svg?style=svg&circle-token=c67a57c6fc4018d2a3542bf99c0bb76ea219c416)](https://circleci.com/gh/alitari/kubeexplorer)
-[![codecov](https://codecov.io/gh/alitari/kubeexplorer/branch/master/graph/badge.svg?token=RiPcH0JQbd)](https://codecov.io/gh/alitari/kubeexplorer)
-
-KubeExplorer is a console user interface for [kubernetes](https://kubernetes.io/). The main purpose of this tool is to enable fast access to kubernetes cluster resources. This is archieved through:
+kubexp is a console user interface for [kubernetes](https://kubernetes.io/). The main purpose of this tool is to enable fast access to kubernetes cluster resources. This is archieved through:
 
 - text based rendering
 - keyboard control
@@ -21,7 +18,7 @@ kubectl apply -f rbac-default-clusteradmin.yaml
 
 ### configure clusters
 
-Kubeexplorer uses `~/.kube/config` to read the k8s contexts. The user of a context *must* have a token defined:
+kubexp uses `~/.kube/config` to read the k8s contexts. The user of a context *must* have a token defined:
 
 ```yaml
 apiVersion: v1
@@ -51,13 +48,13 @@ kubectl config set-credentials $KUBE_USER --token="$TOKEN"
 
 ### get executable
 
-Go to [releases page](https://github.com/alitari/kubeexplorer/releases) and download the binary for your platform: 
+Go to [releases page](https://github.com/alitari/kubexp/releases) and download the binary for your platform: 
 
 - windows:
 
 ### command line options
 
-Call `kubeexplorer -help`
+Call `kubexp -help`
 
 ## build from source
 
@@ -92,11 +89,11 @@ go test main/..
 - under windows:
 
 ```bash
-bin/kubeExplorer.exe
+bin/kubexp.exe
 ```
 
 - under linux:
 
 ```bash
-bin/kubeExplorer
+bin/kubexp
 ```
