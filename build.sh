@@ -7,6 +7,7 @@ else
     executable="$1/kubexp"
     export GOOS="linux"
 fi
-echo "building $GOOS  $executable ..."
+export GOARCH=amd64
+echo "building $GOARCH $GOOS  $executable ..."
 go build -o $executable github.com/alitari/kubexp/main
 chmod a+x $executable
