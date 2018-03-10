@@ -1,12 +1,11 @@
-# kubexp
+# kubexp (KubeExplorer)
 
-kubexp is a console user interface for [kubernetes](https://kubernetes.io/). The main purpose of this tool is to enable fast access to kubernetes cluster resources. This is archieved through:
+[![CircleCI](https://circleci.com/gh/alitari/kubexp.svg?style=svg)](https://circleci.com/gh/alitari/kubexp)
 
-- text based rendering
-- keyboard control
-- multi cluster management
 
-## Installation
+kubexp is a console user interface for [kubernetes](https://kubernetes.io/). The main purpose of this tool is to enable a fast and efficient access to kubernetes cluster resources. I recommend not to use it on production clusters. You need to know that this tool avoids confirmation dialogs even for irreversible commands like delete.
+
+## Setup
 
 ### configure rbac of the cluster
 
@@ -50,11 +49,14 @@ kubectl config set-credentials $KUBE_USER --token="$TOKEN"
 
 Go to [releases page](https://github.com/alitari/kubexp/releases) and download the binary for your platform: 
 
-- windows:
-
 ### command line options
 
 Call `kubexp -help`
+
+### first steps
+
+Once the ui is up, you can press `h` for help.
+
 
 ## build from source
 
