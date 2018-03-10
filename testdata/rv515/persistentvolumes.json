@@ -1,0 +1,48 @@
+{
+  "kind": "PersistentVolumeList",
+  "apiVersion": "v1",
+  "metadata": {
+    "selfLink": "/api/v1/persistentvolumes",
+    "resourceVersion": "5555142"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "pv0001",
+        "selfLink": "/api/v1/persistentvolumespv0001",
+        "uid": "2026f508-7df1-11e7-a233-e8039a27cebe",
+        "resourceVersion": "5555078",
+        "creationTimestamp": "2017-08-10T17:27:03Z",
+        "labels": {
+          "type": "local"
+        },
+        "annotations": {
+          "pv.kubernetes.io/bound-by-controller": "yes"
+        }
+      },
+      "spec": {
+        "capacity": {
+          "storage": "10Gi"
+        },
+        "hostPath": {
+          "path": "/tmp/data01"
+        },
+        "accessModes": [
+          "ReadWriteOnce"
+        ],
+        "claimRef": {
+          "kind": "PersistentVolumeClaim",
+          "namespace": "default",
+          "name": "myclaim-1",
+          "uid": "8317202d-7df1-11e7-a233-e8039a27cebe",
+          "apiVersion": "v1",
+          "resourceVersion": "5555076"
+        },
+        "persistentVolumeReclaimPolicy": "Retain"
+      },
+      "status": {
+        "phase": "Bound"
+      }
+    }
+  ]
+}

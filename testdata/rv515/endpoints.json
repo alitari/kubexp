@@ -1,0 +1,270 @@
+{
+  "kind": "EndpointsList",
+  "apiVersion": "v1",
+  "metadata": {
+    "selfLink": "/api/v1/endpoints",
+    "resourceVersion": "4128687"
+  },
+  "items": [
+    {
+      "metadata": {
+        "name": "kubernetes",
+        "namespace": "default",
+        "selfLink": "/api/v1/namespaces/default/endpoints/kubernetes",
+        "uid": "2693bed9-5054-11e7-a1e0-e8039a27cebe",
+        "resourceVersion": "11",
+        "creationTimestamp": "2017-06-13T16:20:01Z"
+      },
+      "subsets": [
+        {
+          "addresses": [
+            {
+              "ip": "192.168.0.87"
+            },
+            {
+              "ip": "192.168.0.88"
+            }            
+          ],
+          "ports": [
+            {
+              "name": "https",
+              "port": 6443,
+              "protocol": "TCP"
+            },
+            {
+              "name": "https",
+              "port": 6444,
+              "protocol": "TCP"
+            }            
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "name": "calico-etcd",
+        "namespace": "kube-system",
+        "selfLink": "/api/v1/namespaces/kube-system/endpoints/calico-etcd",
+        "uid": "66742418-5059-11e7-90fb-e8039a27cebe",
+        "resourceVersion": "4105892",
+        "creationTimestamp": "2017-06-13T16:57:35Z",
+        "labels": {
+          "k8s-app": "calico-etcd"
+        }
+      },
+      "subsets": [
+        {
+          "addresses": [
+            {
+              "ip": "192.168.0.87",
+              "nodeName": "rv515.localdomain",
+              "targetRef": {
+                "kind": "Pod",
+                "namespace": "kube-system",
+                "name": "calico-etcd-bkcr2",
+                "uid": "664ce375-5059-11e7-90fb-e8039a27cebe",
+                "resourceVersion": "4105891"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "port": 6666,
+              "protocol": "TCP"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "name": "kube-controller-manager",
+        "namespace": "kube-system",
+        "selfLink": "/api/v1/namespaces/kube-system/endpoints/kube-controller-manager",
+        "uid": "0200ddcf-505f-11e7-a233-e8039a27cebe",
+        "resourceVersion": "4128686",
+        "creationTimestamp": "2017-06-13T17:37:44Z",
+        "annotations": {
+          "control-plane.alpha.kubernetes.io/leader": "{\"holderIdentity\":\"rv515.localdomain\",\"leaseDurationSeconds\":15,\"acquireTime\":\"2017-06-13T17:37:44Z\",\"renewTime\":\"2017-07-26T19:17:58Z\",\"leaderTransitions\":0}"
+        }
+      },
+      "subsets": null
+    },
+    {
+      "metadata": {
+        "name": "kube-dns",
+        "namespace": "kube-system",
+        "selfLink": "/api/v1/namespaces/kube-system/endpoints/kube-dns",
+        "uid": "71fb398e-5055-11e7-90fb-e8039a27cebe",
+        "resourceVersion": "4128659",
+        "creationTimestamp": "2017-06-13T16:29:17Z",
+        "labels": {
+          "k8s-app": "kube-dns",
+          "kubernetes.io/cluster-service": "true",
+          "kubernetes.io/name": "KubeDNS"
+        }
+      },
+      "subsets": [
+        {
+          "addresses": [
+            {
+              "ip": "192.168.91.68",
+              "nodeName": "rv515.localdomain",
+              "targetRef": {
+                "kind": "Pod",
+                "namespace": "kube-system",
+                "name": "kube-dns-3913472980-8zj99",
+                "uid": "a85641e2-5059-11e7-90fb-e8039a27cebe",
+                "resourceVersion": "4105847"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "name": "dns",
+              "port": 53,
+              "protocol": "UDP"
+            },
+            {
+              "name": "dns-tcp",
+              "port": 53,
+              "protocol": "TCP"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "name": "kube-scheduler",
+        "namespace": "kube-system",
+        "selfLink": "/api/v1/namespaces/kube-system/endpoints/kube-scheduler",
+        "uid": "01e5bf0c-505f-11e7-a233-e8039a27cebe",
+        "resourceVersion": "4128687",
+        "creationTimestamp": "2017-06-13T17:37:44Z",
+        "annotations": {
+          "control-plane.alpha.kubernetes.io/leader": "{\"holderIdentity\":\"rv515.localdomain\",\"leaseDurationSeconds\":15,\"acquireTime\":\"2017-06-13T17:37:44Z\",\"renewTime\":\"2017-07-26T19:17:59Z\",\"leaderTransitions\":0}"
+        }
+      },
+      "subsets": null
+    },
+    {
+      "metadata": {
+        "name": "tiller-deploy",
+        "namespace": "kube-system",
+        "selfLink": "/api/v1/namespaces/kube-system/endpoints/tiller-deploy",
+        "uid": "0708f997-505b-11e7-90fb-e8039a27cebe",
+        "resourceVersion": "4105936",
+        "creationTimestamp": "2017-06-13T17:09:14Z",
+        "labels": {
+          "app": "helm",
+          "name": "tiller"
+        }
+      },
+      "subsets": [
+        {
+          "addresses": [
+            {
+              "ip": "192.168.91.69",
+              "nodeName": "rv515.localdomain",
+              "targetRef": {
+                "kind": "Pod",
+                "namespace": "kube-system",
+                "name": "tiller-deploy-1651596238-3ccvg",
+                "uid": "0705fe4e-505b-11e7-90fb-e8039a27cebe",
+                "resourceVersion": "4105935"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "name": "tiller",
+              "port": 44134,
+              "protocol": "TCP"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "name": "minio-minio-svc",
+        "namespace": "minio",
+        "selfLink": "/api/v1/namespaces/minio/endpoints/minio-minio-svc",
+        "uid": "7be33f84-505f-11e7-a233-e8039a27cebe",
+        "resourceVersion": "4105879",
+        "creationTimestamp": "2017-06-13T17:41:08Z",
+        "labels": {
+          "app": "minio-minio",
+          "chart": "minio-0.1.2",
+          "heritage": "Tiller",
+          "release": "minio"
+        }
+      },
+      "subsets": [
+        {
+          "addresses": [
+            {
+              "ip": "192.168.91.70",
+              "nodeName": "rv515.localdomain",
+              "targetRef": {
+                "kind": "Pod",
+                "namespace": "minio",
+                "name": "minio-minio-3709128164-vdwk1",
+                "uid": "7c170603-505f-11e7-a233-e8039a27cebe",
+                "resourceVersion": "4105878"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "name": "service",
+              "port": 9000,
+              "protocol": "TCP"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "metadata": {
+        "name": "nexus-nexus",
+        "namespace": "nexus",
+        "selfLink": "/api/v1/namespaces/nexus/endpoints/nexus-nexus",
+        "uid": "67bb1e02-52b5-11e7-a233-e8039a27cebe",
+        "resourceVersion": "4105882",
+        "creationTimestamp": "2017-06-16T17:01:14Z",
+        "labels": {
+          "app": "nexus-nexus",
+          "chart": "nexus-0.0.1",
+          "heritage": "Tiller",
+          "release": "nexus"
+        }
+      },
+      "subsets": [
+        {
+          "addresses": [
+            {
+              "ip": "192.168.91.72",
+              "nodeName": "rv515.localdomain",
+              "targetRef": {
+                "kind": "Pod",
+                "namespace": "nexus",
+                "name": "nexus-nexus-1236337585-hrrfz",
+                "uid": "67dc6264-52b5-11e7-a233-e8039a27cebe",
+                "resourceVersion": "4105881"
+              }
+            }
+          ],
+          "ports": [
+            {
+              "name": "nexus",
+              "port": 8081,
+              "protocol": "TCP"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

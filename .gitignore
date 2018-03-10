@@ -1,0 +1,10 @@
+.vscode/
+*Result.json
+kubeExplorer.exe
+*.log
+coverage.out
+vendor/
+gitInfo.go
+bin/
+debug
+debug.test

@@ -1,0 +1,67 @@
+# Golang CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-go/ for more details
+version: 2
+jobs:
+  build:
+    filters:
+      tags:
+        only: /.*/
+    docker:
+      # specify the version
+      - image: circleci/golang:1.8
+      
+      # Specify service dependencies here if necessary
+      # CircleCI maintains a library of pre-built images
+      # documented at https://circleci.com/docs/2.0/circleci-images/
+      # - image: circleci/postgres:9.4
+
+    #### TEMPLATE_NOTE: go expects specific checkout path representing url
+    #### expecting it in the form of
+    ####   /go/src/github.com/circleci/go-tool
+    ####   /go/src/bitbucket.org/circleci/go-tool
+    working_directory: /go/src/github.com/alitari/kubeExplorer
+    steps:
+      - checkout
+
+      # specify any bash command here prefixed with `run: `
+      - run: 
+          name: fetch dependencies
+          command: go get -v -t -d ./...
+      - run: 
+          name: setup test location
+          command: mkdir -p /tmp/test-results && mkdir -p /tmp/coverage-results
+      
+      - run: go get github.com/jstemmer/go-junit-report
+      - run:
+          name: Run unit tests
+          command: |
+            ./gitinfo.sh
+            export TERM=xterm
+            trap "go-junit-report </tmp/test-results/go-test.out > /tmp/test-results/go-test-report.xml" EXIT
+            go test -v | tee /tmp/test-results/go-test.out
+      - store_test_results:
+          path: /tmp/test-results
+      - store_artifacts:
+          path: /tmp/test-results
+      - run:
+          name: test coverage
+          command: |
+            ./gitinfo.sh
+            export TERM=xterm
+            go test -coverprofile=coverage.out  
+            go tool cover -html=coverage.out -o /tmp/coverage-results/coverage.html
+            export CODECOV_TOKEN=6675cd27-d6a4-4084-9f27-34d10c7709ce
+            bash <(curl -s https://codecov.io/bash) 
+      - store_test_results:
+          path: /tmp/coverage-results
+      - store_artifacts:
+          path: /tmp/coverage-results
+      - run:
+          name: build executables
+          command: |
+            pwd
+            ./build.sh bin windows
+            ./build.sh bin linux
+      - store_artifacts:
+          path: bin
