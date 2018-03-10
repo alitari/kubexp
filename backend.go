@@ -13,7 +13,6 @@ import (
 
 	"net/http"
 
-	"github.com/elgs/gojq"
 	"gopkg.in/resty.v0"
 )
 
@@ -361,16 +360,6 @@ func (b *backendType) restCallNoNs(httpMethod, apiPrefix, ress string, body inte
 func (b *backendType) restCallBatch(httpMethod, ress string, ns string, body interface{}) (string, error) {
 	url := fmt.Sprintf("%s/apis/batch/v1/namespaces/%s/%s", b.context.Cluster.URL, ns, ress)
 	return b.restExecutor(httpMethod, url, body)
-}
-
-func parse0(js string, q string) interface{} {
-	parser, err := gojq.NewStringQuery(js)
-	v, err := parser.Query(q)
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
-	return v
 }
 
 func unmarshall(js string) map[string]interface{} {
