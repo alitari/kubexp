@@ -103,3 +103,6 @@ bin/kubexp.exe
 ```bash
 bin/kubexp
 ```
+
+## Credits
+- [GOCUI](https://github.com/jroimartin/gocui) go framework for console user interfaces
