@@ -5,6 +5,10 @@
 
 kubexp is a console user interface for [kubernetes](https://kubernetes.io/). The main purpose of this tool is to enable a fast and efficient access to kubernetes cluster resources. I recommend not to use it on production clusters. You need to know that this tool avoids confirmation dialogs even for irreversible commands like delete.
 
+[![asciicast](https://asciinema.org/a/fcNznijsqQdPMp7cGrrPSW4xq.png)](https://asciinema.org/a/fcNznijsqQdPMp7cGrrPSW4xq)
+
+
+
 ## Setup
 
 ### rbac
