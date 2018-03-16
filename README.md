@@ -44,7 +44,7 @@ users:
 Having access to your cluster with [`kubectl`](https://kubernetes.io/docs/user-guide/kubectl-overview/) you can add the token to your current context:
 
 ```bash
-TOKEN=$(kubectl describe secret $(kubectl get secrets | grep default | cut -f1 -d ' ') | grep -E '^token' | cut -f2 -d':' | tr -d '\t')
+TOKEN=$(kubectl describe secret $(kubectl get secrets | grep default | cut -f1 -d ' ') | grep -E '^token' | cut -f2 -d':' | tr -d '\t' | xargs)
 KUBE_USER=$(kubectl config get-contexts | grep "*" | awk -v N=4 '{print $N}')
 kubectl config set-credentials $KUBE_USER --token="$TOKEN"
 ```
