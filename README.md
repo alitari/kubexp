@@ -5,6 +5,10 @@
 
 kubexp is a console user interface for [kubernetes](https://kubernetes.io/). The main purpose of this tool is to enable a fast and efficient access to kubernetes cluster resources. I recommend not to use it on production clusters. You need to know that this tool avoids confirmation dialogs even for irreversible commands like delete.
 
+[![asciicast](https://asciinema.org/a/fcNznijsqQdPMp7cGrrPSW4xq.png)](https://asciinema.org/a/fcNznijsqQdPMp7cGrrPSW4xq)
+
+
+
 ## Setup
 
 ### rbac
@@ -40,7 +44,7 @@ users:
 Having access to your cluster with [`kubectl`](https://kubernetes.io/docs/user-guide/kubectl-overview/) you can add the token to your current context:
 
 ```bash
-TOKEN=$(kubectl describe secret $(kubectl get secrets | grep default | cut -f1 -d ' ') | grep -E '^token' | cut -f2 -d':' | tr -d '\t')
+TOKEN=$(kubectl describe secret $(kubectl get secrets | grep default | cut -f1 -d ' ') | grep -E '^token' | cut -f2 -d':' | tr -d '\t' | xargs)
 KUBE_USER=$(kubectl config get-contexts | grep "*" | awk -v N=4 '{print $N}')
 kubectl config set-credentials $KUBE_USER --token="$TOKEN"
 ```
@@ -99,3 +103,6 @@ bin/kubexp.exe
 ```bash
 bin/kubexp
 ```
+
+## Credits
+- [GOCUI](https://github.com/jroimartin/gocui) go framework for console user interfaces
