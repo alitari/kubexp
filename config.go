@@ -338,6 +338,7 @@ No Data
 {{- header "Name" . .metadata.name | printf "%-50.50s " -}}
 {{- header "  R" . ( count ( fk .status.containerStatuses "ready" true )) | printf "%3.3s/" -}}
 {{- header "A  " . (count .spec.containers) | printf "%-3.3s " -}}
+{{- header "RC" . ( ind .status.containerStatuses 0).restartCount | printf "%-3.3s " -}}
 {{- header "Restart-Policy" . .spec.restartPolicy | printf "%-16.16s " -}}
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 {{- header "Node" . .spec.nodeName | printf "%-30.30s " -}}
