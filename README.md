@@ -51,7 +51,14 @@ kubectl config set-credentials $KUBE_USER --token="$TOKEN"
 
 ### get executable
 
-Go to [releases page](https://github.com/alitari/kubexp/releases) and download the binary for your platform: 
+Go to [releases page](https://github.com/alitari/kubexp/releases) and download the binary for your platform.
+
+```bash
+KUBEXP_RELEASE="v0.1.0"
+wget https://github.com/alitari/kubexp/releases/download/${KUBEXP_RELEASE}/kubexp
+chmod +x kubexp
+```
+
 
 ### command line options
 
@@ -61,47 +68,28 @@ Call `kubexp -help`
 
 Once the ui is up, you can press `h` for help.
 
+### building and running
 
-## build from source
-
-### get dependencies
+set the GOOS environment variable according your os
 
 ```bash
+# setup development environment
+SRCDIR=${GOPATH:-${HOME}/go}/src/github.com/alitari/ && mkdir -p $SRCDIR && cd $SRCDIR
+git clone https://github.com/alitari/kubexp.git && cd kubexp
+# fetch dependencies
 go get -v -t -d ./...
-```
 
-### building
-
-- windows
-
-```bash
-./build.sh bin windows
-```
-
-- linux
-
-```bash
-./build.sh bin linux
-```
-
-### running
-
-- run tests:
-
-```bash
-go test main/..
-```
-
-- under windows:
-
-```bash
-bin/kubexp.exe
-```
-
-- under linux:
-
-```bash
+export GOOS="linux"
+# export GOOS="windows"
+# build executable
+./build.sh bin
+# execute linux
 bin/kubexp
+# execute windows
+# bin/kubexp.exe
+
+# execute tests
+go test main/..
 ```
 
 ## Credits
