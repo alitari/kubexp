@@ -413,7 +413,10 @@ func colorContextEmp(text string) string {
 func index(it interface{}, i int) interface{} {
 	switch it.(type) {
 	case []interface{}:
-		return it.([]interface{})[i]
+		a := it.([]interface{})
+		if i < len(a) {
+			return a[i]
+		}
 	}
 	return map[string]interface{}{}
 }
