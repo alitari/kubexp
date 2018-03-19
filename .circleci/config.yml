@@ -61,7 +61,9 @@ jobs:
           name: build executables
           command: |
             pwd
-            ./build.sh bin windows
-            ./build.sh bin linux
+            export GOOS="linux"
+            ./build.sh bin
+            export GOOS="windows"
+            ./build.sh bin
       - store_artifacts:
           path: bin
