@@ -51,7 +51,7 @@ jobs:
             export TERM=xterm
             go test -coverprofile=coverage.out  
             go tool cover -html=coverage.out -o /tmp/coverage-results/coverage.html
-            export CODECOV_TOKEN=6675cd27-d6a4-4084-9f27-34d10c7709ce
+            export CODECOV_TOKEN=d0a8d4da-08cf-4144-bc36-8c60b77965b9
             bash <(curl -s https://codecov.io/bash) 
       - store_test_results:
           path: /tmp/coverage-results
