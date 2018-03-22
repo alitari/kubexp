@@ -55,7 +55,7 @@ kubectl config set-credentials $KUBE_USER --token="$TOKEN"
 Go to [releases page](https://github.com/alitari/kubexp/releases) and download the binary for your platform.
 
 ```bash
-KUBEXP_RELEASE="v0.1.0"
+KUBEXP_RELEASE="v0.1.1"
 wget https://github.com/alitari/kubexp/releases/download/${KUBEXP_RELEASE}/kubexp
 chmod +x kubexp
 ```
