@@ -197,12 +197,12 @@ var previousLineCommand = commandType{Name: "Previous resource item", f: func(g 
 	return nil
 }}
 
-var nextPageCommand = commandType{Name: "Next resource item page ", f: func(g *gocui.Gui, v *gocui.View) error {
+var nextResourceItemListPageCommand = commandType{Name: "Next resource item page ", f: func(g *gocui.Gui, v *gocui.View) error {
 	resourceItemsList.widget.nextPage()
 	return nil
 }}
 
-var previousPageCommand = commandType{Name: "Previous resource item page ", f: func(g *gocui.Gui, v *gocui.View) error {
+var previousResourceItemListPageCommand = commandType{Name: "Previous resource item page ", f: func(g *gocui.Gui, v *gocui.View) error {
 	resourceItemsList.widget.previousPage()
 	return nil
 }}
@@ -296,6 +296,16 @@ var previousContextCommand = commandType{Name: "Previous context", f: func(g *go
 	return nil
 }}
 
+var nextContextPageCommand = commandType{Name: "Next context", f: func(g *gocui.Gui, v *gocui.View) error {
+	clusterList.widget.nextPage()
+	return nil
+}}
+
+var previousContextPageCommand = commandType{Name: "Next context", f: func(g *gocui.Gui, v *gocui.View) error {
+	clusterList.widget.previousPage()
+	return nil
+}}
+
 var gotoSelectNamespaceStateCommand = commandType{Name: "Select namespace", f: func(g *gocui.Gui, v *gocui.View) error {
 	setState(selectNsState)
 	return nil
@@ -319,6 +329,16 @@ var nextNamespaceCommand = commandType{Name: "Next namespace", f: func(g *gocui.
 
 var previousNamespaceCommand = commandType{Name: "Previous namespace", f: func(g *gocui.Gui, v *gocui.View) error {
 	namespaceList.widget.previousSelectedItem()
+	return nil
+}}
+
+var nextNamespacePageCommand = commandType{Name: "Next namespace", f: func(g *gocui.Gui, v *gocui.View) error {
+	namespaceList.widget.nextPage()
+	return nil
+}}
+
+var previousNamespacePageCommand = commandType{Name: "Previous namespace", f: func(g *gocui.Gui, v *gocui.View) error {
+	namespaceList.widget.previousPage()
 	return nil
 }}
 
