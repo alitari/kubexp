@@ -181,6 +181,21 @@ var errorState = stateType{
 	},
 }
 
+var confirmState = stateType{
+	name: "confirmState",
+	enterFunc: func(fromState stateType) {
+		confirmWidget.active = true
+		confirmWidget.visible = true
+
+	},
+	exitFunc: func(fromState stateType) {
+		confirmWidget.active = false
+		confirmWidget.visible = false
+	},
+}
+
+var confirmCommand commandType
+
 var portforwardProxies = map[string][]*portforwardProxy{}
 
 var portforwardStartPort int
@@ -198,6 +213,7 @@ var resourceItemDetailsWidget *textWidget
 var helpWidget *textWidget
 var execWidget *shellWidget
 var errorWidget *textWidget
+var confirmWidget *textWidget
 
 var selectedResourceCategoryIndex = 0
 var selectedClusterInfoIndex = 0
@@ -340,7 +356,9 @@ func createWidgets() {
 	errorWidget = newTextWidget("error", "ERROR", false, 10, 7, maxX-20, 10)
 	errorWidget.wrap = true
 
-	g.SetManager(clusterList.widget, clusterResourcesWidget, namespaceList.widget, resourceMenu.widget, resourcesItemDetailsMenu.widget, searchmodeWidget, resourceItemsList.widget, resourceItemDetailsWidget, helpWidget, errorWidget, execWidget)
+	confirmWidget = newTextWidget("confirm", "Confirm", false, 20, 7, maxX-40, 4)
+
+	g.SetManager(clusterList.widget, clusterResourcesWidget, namespaceList.widget, resourceMenu.widget, resourcesItemDetailsMenu.widget, searchmodeWidget, resourceItemsList.widget, resourceItemDetailsWidget, helpWidget, errorWidget, execWidget, confirmWidget)
 
 }
 
@@ -375,6 +393,16 @@ func showError(mess string, err error) {
 		co := []interface{}{mess, err}
 		errorWidget.setContent(co, tpl("error", errorTemplate))
 		setState(errorState)
+		return nil
+	})
+}
+
+func showConfirm(mess string, command commandType) {
+	confirmCommand = command
+	g.Update(func(gui *gocui.Gui) error {
+		co := []interface{}{mess}
+		confirmWidget.setContent(co, tpl("confirm", confirmTemplate))
+		setState(confirmState)
 		return nil
 	})
 }
@@ -632,6 +660,10 @@ func bindKeys() {
 
 	bindKey(g, keyEventType{Viewname: errorWidget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, quitWidgetCommand)
 
+	bindKey(g, keyEventType{Viewname: confirmWidget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, quitWidgetCommand)
+	bindKey(g, keyEventType{Viewname: confirmWidget.name, Key: 'n', mod: gocui.ModNone}, quitWidgetCommand)
+	bindKey(g, keyEventType{Viewname: confirmWidget.name, Key: 'y', mod: gocui.ModNone}, executeConfirmCommand)
+
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyCtrlC, mod: gocui.ModNone}, quitCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyArrowRight, mod: gocui.ModNone}, nextResourceCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyArrowLeft, mod: gocui.ModNone}, previousResourceCommand)
@@ -649,7 +681,7 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousResourceItemListPageCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeySpace, mod: gocui.ModNone}, reloadCommand)
 
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyDelete, mod: gocui.ModNone}, deleteCommand)
+	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyDelete, mod: gocui.ModNone}, deleteConfirmCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '+', mod: gocui.ModNone}, scaleUpCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '-', mod: gocui.ModNone}, scaleDownCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'm', mod: gocui.ModNone}, nameSortCommand)

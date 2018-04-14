@@ -135,6 +135,20 @@ var reloadCommand = commandType{Name: "Reload", f: func(g *gocui.Gui, v *gocui.V
 	return nil
 }}
 
+func newConfirmCommand(name string, command commandType) commandType {
+	var confirmCommand = commandType{Name: name, f: func(g *gocui.Gui, v *gocui.View) error {
+		showConfirm(fmt.Sprintf("Delete %s from %s ?", currentResourceItemName(), currentResource().Name), command)
+		return nil
+	}}
+	return confirmCommand
+}
+
+var executeConfirmCommand = commandType{Name: "Execute command to confirm", f: func(g *gocui.Gui, v *gocui.View) error {
+	quitWidgetCommand.f(g, v)
+	confirmCommand.f(g, v)
+	return nil
+}}
+
 var deleteCommand = commandType{Name: "Delete resource", f: func(g *gocui.Gui, v *gocui.View) error {
 	tmp := resourceItemsList.widget.title
 	resourceItemsList.widget.title = "Deleting pod ..."
@@ -147,6 +161,8 @@ var deleteCommand = commandType{Name: "Delete resource", f: func(g *gocui.Gui, v
 	})
 	return nil
 }}
+
+var deleteConfirmCommand = newConfirmCommand("Delete resource", deleteCommand)
 
 var nameSortCommand = commandType{Name: "Sort by name", f: func(g *gocui.Gui, v *gocui.View) error {
 	nameSorting()

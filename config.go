@@ -81,6 +81,11 @@ var errorTemplate = colorizeText(fmt.Sprintf(`
 Error:
 {{ (ind . 1)}}`), 0, 180, redEmpInlineColor)
 
+var confirmTemplate = colorizeText(fmt.Sprintf(`
+{{ (ind . 0)}}
+[Y]es or [N]o
+`), 0, 180, yellowEmpInlineColor)
+
 var labelsAndAnnoTemplate = `{{ "Labels:" | whiteEmp }}` + mapTemplate(".metadata.labels") + `
 
 {{ "Annotations:" | whiteEmp }}` + mapTemplate(".metadata.annotations")
