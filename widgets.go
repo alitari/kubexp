@@ -95,7 +95,8 @@ func (w *shellWidget) open(g *gocui.Gui, inputChan, outputChan chan []byte) {
 					if err != nil {
 						return nil
 					}
-					if str == string([]byte{8, 27, 91, 74}) {
+					tracelog.Printf("received: %x", str)
+					if str == string([]byte{8, 27, 91, 74}) || str == string([]byte{8, 27, 91, 75}) {
 						v.EditDelete(true)
 					} else if strings.HasSuffix(str, string([]byte{27, 91, 74})) {
 						ll := lastLine(v)
