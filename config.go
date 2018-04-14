@@ -197,7 +197,7 @@ var defaultResources = []resourceType{
 {{- header "Accessmodes" . ( printArray .spec.accessModes) | printf "%-20.20s " -}}
 {{- header "Reclaimpolicy" . .spec.persistentVolumeReclaimPolicy | printf "%-15.15s " -}}
 {{- header "Status" . .status.phase | printf "%-8.8s " -}}
-{{- header "Claim" . ( printf "%s/%s" .spec.claimRef.namespace .spec.claimRef.name ) | printf "%-30.30s " -}}
+{{- header "Claim" . ( printf "%v/%v" .spec.claimRef.namespace .spec.claimRef.name ) | printf "%-30.30s " -}}
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}`,
 			},
 			yamlView,
