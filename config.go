@@ -86,6 +86,10 @@ var confirmTemplate = colorizeText(fmt.Sprintf(`
 [Y]es or [N]o
 `), 0, 180, yellowEmpInlineColor)
 
+var loadingTemplate = colorizeText(fmt.Sprintf(`
+{{ (ind . 0)}}
+`), 0, 180, yellowEmpInlineColor)
+
 var labelsAndAnnoTemplate = `{{ "Labels:" | whiteEmp }}` + mapTemplate(".metadata.labels") + `
 
 {{ "Annotations:" | whiteEmp }}` + mapTemplate(".metadata.annotations")

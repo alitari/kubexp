@@ -263,8 +263,8 @@ type textWidget struct {
 	textMarkColor            inlineColorType
 }
 
-func newTextWidget(name, title string, visible bool, x, y, w, h int) *textWidget {
-	return &textWidget{name: name, title: title, visible: visible, showPos: true, x: x, y: y, w: w, h: h, wrap: false, xOffset: 0, yOffset: 0, findIdx: []int{}, currentFind: -1, textMarkColor: redEmpInlineColor}
+func newTextWidget(name, title string, visible, showPos bool, x, y, w, h int) *textWidget {
+	return &textWidget{name: name, title: title, visible: visible, showPos: showPos, x: x, y: y, w: w, h: h, wrap: false, xOffset: 0, yOffset: 0, findIdx: []int{}, currentFind: -1, textMarkColor: redEmpInlineColor}
 }
 
 func (w *textWidget) Layout(g *gocui.Gui) error {

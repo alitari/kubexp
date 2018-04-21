@@ -194,6 +194,19 @@ var confirmState = stateType{
 	},
 }
 
+var loadingState = stateType{
+	name: "loadingState",
+	enterFunc: func(fromState stateType) {
+		loadingWidget.active = true
+		loadingWidget.visible = true
+
+	},
+	exitFunc: func(fromState stateType) {
+		loadingWidget.active = false
+		loadingWidget.visible = false
+	},
+}
+
 var confirmCommand commandType
 
 var portforwardProxies = map[string][]*portforwardProxy{}
@@ -214,6 +227,7 @@ var helpWidget *textWidget
 var execWidget *shellWidget
 var errorWidget *textWidget
 var confirmWidget *textWidget
+var loadingWidget *textWidget
 
 var selectedResourceCategoryIndex = 0
 var selectedClusterInfoIndex = 0
@@ -316,8 +330,7 @@ func createWidgets() {
 	clusterList.widget.frame = true
 	clusterList.widget.template = tpl("clusterTemplate", `{{ "Name:" | contextColorEmp }} {{ .Name | printf "%-20.20s" }}  {{ "URL:" | contextColorEmp }} {{ .Cluster.URL }}`)
 
-	clusterResourcesWidget = newTextWidget("clusterResources", "cluster resources", true, sepXAt2+2, 1, sepXAt-sepXAt2-1, 2)
-	clusterResourcesWidget.showPos = false
+	clusterResourcesWidget = newTextWidget("clusterResources", "cluster resources", true, false, sepXAt2+2, 1, sepXAt-sepXAt2-1, 2)
 
 	namespaceList = newNlist("namespaces", sepXAt+2, 1, maxX-sepXAt-3, 10)
 	namespaceList.widget.expandable = true
@@ -347,18 +360,20 @@ func createWidgets() {
 	resourceItemsList.widget.headerItem = map[string]interface{}{"header": "true"}
 	resourceItemsList.widget.headerFgColor = gocui.ColorDefault | gocui.AttrBold
 
-	resourceItemDetailsWidget = newTextWidget("text", "resource item details", false, 1, sepYAt, maxX-2, maxY-sepYAt-1)
+	resourceItemDetailsWidget = newTextWidget("text", "resource item details", false, true, 1, sepYAt, maxX-2, maxY-sepYAt-1)
 
-	helpWidget = newTextWidget("help", "HELP", false, maxX/2-32, 5, 64, maxY-10)
+	helpWidget = newTextWidget("help", "HELP", false, false, maxX/2-32, 5, 64, maxY-10)
 
 	execWidget = newShellWidget("exec", "execWidget", 2, 5, maxX-4, maxY-10)
 
-	errorWidget = newTextWidget("error", "ERROR", false, 10, 7, maxX-20, 10)
+	errorWidget = newTextWidget("error", "ERROR", false, false, 10, 7, maxX-20, 10)
 	errorWidget.wrap = true
 
-	confirmWidget = newTextWidget("confirm", "Confirm", false, 20, 7, maxX-40, 4)
+	confirmWidget = newTextWidget("confirm", "Confirm", false, false, 20, 7, maxX-40, 4)
 
-	g.SetManager(clusterList.widget, clusterResourcesWidget, namespaceList.widget, resourceMenu.widget, resourcesItemDetailsMenu.widget, searchmodeWidget, resourceItemsList.widget, resourceItemDetailsWidget, helpWidget, errorWidget, execWidget, confirmWidget)
+	loadingWidget = newTextWidget("loading", "", false, false, 30, 10, maxX-60, 4)
+
+	g.SetManager(clusterList.widget, clusterResourcesWidget, namespaceList.widget, resourceMenu.widget, resourcesItemDetailsMenu.widget, searchmodeWidget, resourceItemsList.widget, resourceItemDetailsWidget, helpWidget, errorWidget, execWidget, confirmWidget, loadingWidget)
 
 }
 
@@ -403,6 +418,17 @@ func showConfirm(mess string, command commandType) {
 		co := []interface{}{mess}
 		confirmWidget.setContent(co, tpl("confirm", confirmTemplate))
 		setState(confirmState)
+		return nil
+	})
+}
+
+func showLoading(command commandType, g *gocui.Gui, v *gocui.View) {
+	co := []interface{}{"Loading..."}
+	loadingWidget.setContent(co, tpl("loading", loadingTemplate))
+	setState(loadingState)
+	g.Update(func(gui *gocui.Gui) error {
+		command.f(g, v)
+		setState(browseState)
 		return nil
 	})
 }
@@ -713,13 +739,13 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlN, mod: gocui.ModNone}, findNextCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlP, mod: gocui.ModNone}, findPreviousCommand)
 
-	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, selectNamespaceCommand)
+	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, selectNamespaceLoadingCommand)
 	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousNamespaceCommand)
 	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextNamespaceCommand)
 	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextNamespacePageCommand)
 	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousNamespacePageCommand)
 
-	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, selectContextCommand)
+	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, selectContextLoadingCommand)
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousContextCommand)
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextContextCommand)
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextContextPageCommand)

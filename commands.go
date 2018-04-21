@@ -143,6 +143,14 @@ func newConfirmCommand(name string, command commandType) commandType {
 	return confirmCommand
 }
 
+func newLoadingCommand(name string, command commandType) commandType {
+	var loadingCommand = commandType{Name: name, f: func(g *gocui.Gui, v *gocui.View) error {
+		showLoading(command, g, v)
+		return nil
+	}}
+	return loadingCommand
+}
+
 var executeConfirmCommand = commandType{Name: "Execute command to confirm", f: func(g *gocui.Gui, v *gocui.View) error {
 	quitWidgetCommand.f(g, v)
 	confirmCommand.f(g, v)
@@ -292,16 +300,10 @@ var gotoSelectContextStateCommand = commandType{Name: "Select context", f: func(
 	return nil
 }}
 
-var selectContextCommand = commandType{Name: "Select context", f: func(g *gocui.Gui, v *gocui.View) error {
-	clusterList.widget.title = "Loading resources of cluster (%d/%d)...    "
-	g.Update(func(gui *gocui.Gui) error {
-		newContext()
-		clusterList.widget.title = "[C]luster"
-		return nil
-	})
-	setState(browseState)
+var selectContextLoadingCommand = newLoadingCommand("Select context", commandType{Name: "sc", f: func(g *gocui.Gui, v *gocui.View) error {
+	newContext()
 	return nil
-}}
+}})
 
 var nextContextCommand = commandType{Name: "Next context", f: func(g *gocui.Gui, v *gocui.View) error {
 	clusterList.widget.nextSelectedItem()
@@ -327,16 +329,10 @@ var gotoSelectNamespaceStateCommand = commandType{Name: "Select namespace", f: f
 	return nil
 }}
 
-var selectNamespaceCommand = commandType{Name: "Select namespace", f: func(g *gocui.Gui, v *gocui.View) error {
-	namespaceList.widget.title = "Loading resources of namespace (%d/%d)...    "
-	g.Update(func(gui *gocui.Gui) error {
-		findResourceCategoryWithResources(1)
-		namespaceList.widget.title = "[N]amespace"
-		return nil
-	})
-	setState(browseState)
+var selectNamespaceLoadingCommand = newLoadingCommand("Select namespace", commandType{Name: "sn", f: func(g *gocui.Gui, v *gocui.View) error {
+	findResourceCategoryWithResources(1)
 	return nil
-}}
+}})
 
 var nextNamespaceCommand = commandType{Name: "Next namespace", f: func(g *gocui.Gui, v *gocui.View) error {
 	namespaceList.widget.nextSelectedItem()
@@ -375,28 +371,7 @@ var showHelpCommand = commandType{Name: "Show help", f: func(g *gocui.Gui, v *go
 	return nil
 }}
 
-// var execCommand = commandType{Name: "Exec in to pod", f: func(g *gocui.Gui, v *gocui.View) error {
-// 	res := currentResource()
-// 	if res.Name != "pods" {
-// 		return nil
-// 	}
-// 	ns := currentNamespace()
-// 	rname := currentResourceItemName()
-// 	in, out, err := backend.execIntoPod(ns, rname, "bin/sh", func() {
-// 		g.Cursor = false
-// 		setState(browseState)
-// 	})
-// 	if err != nil {
-// 		showError("Can't exec into pod",err)
-// 		return nil
-// 	}
-// 	setState(execPodState)
-// 	execWidget.title = fmt.Sprintf("exec in %s",rname)
-// 	execWidget.open(g, in, out)
-// 	return nil
-// }}
-
-var quitWidgetCommand = commandType{Name: "quit help", f: func(g *gocui.Gui, v *gocui.View) error {
+var quitWidgetCommand = commandType{Name: "quit", f: func(g *gocui.Gui, v *gocui.View) error {
 	setState(browseState)
 	return nil
 }}
