@@ -655,17 +655,11 @@ func contextName(viewName interface{}) string {
 			return "Detail"
 		case "resourceItems":
 			return "Browse"
-		case "help":
-			return "Help"
-		case "namespaces":
-			return "Namespaces"
-		case "cluster":
-			return "Clusters"
 		case "":
 			return "All"
 		}
 	}
-	return ""
+	return viewName.(string)
 }
 
 func fromChildren(it interface{}, key string) string {
