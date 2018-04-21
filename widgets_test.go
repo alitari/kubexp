@@ -362,7 +362,7 @@ func createTextWidget(t *testing.T) (*gocui.Gui, *textWidget) {
 	g, err := gocui.NewGui(gocui.OutputNormal)
 	require.Nil(err, "err should be not there")
 	require.NotNil(g, "gui should be there")
-	w := newTextWidget("TestWidget", "TestWidgetTitle", false, 3, 4, 5, 6)
+	w := newTextWidget("TestWidget", "TestWidgetTitle", false, true, 3, 4, 5, 6)
 	return g, w
 }
 
