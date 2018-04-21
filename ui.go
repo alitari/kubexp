@@ -265,6 +265,7 @@ func Run() {
 	cfg = newConfig(*configFile)
 	resourceCategories = cfg.allResourceCategories()
 	backend = newRestyBackend(cfg.contexts[0])
+	updateKubectlContext()
 
 	g, err = gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
