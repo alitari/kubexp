@@ -3,12 +3,11 @@
 [![CircleCI](https://circleci.com/gh/alitari/kubexp.svg?style=svg&circle-token=0a1cb7c84884d737a8f742e7775ef88dbda65aff)](https://circleci.com/gh/alitari/kubexp)
 [![codecov](https://codecov.io/gh/alitari/kubexp/branch/master/graph/badge.svg)](https://codecov.io/gh/alitari/kubexp)
 
-
 kubexp is a console user interface for [kubernetes](https://kubernetes.io/). The main purpose of this tool is to enable a fast and efficient access to kubernetes cluster resources.
 
-[![asciicast](https://asciinema.org/a/fcNznijsqQdPMp7cGrrPSW4xq.png)](https://asciinema.org/a/fcNznijsqQdPMp7cGrrPSW4xq)
+![browse](./gifs/browse.gif)
 
-
+see more features [here](./gifs/features.md)
 
 ## Setup
 
@@ -60,7 +59,6 @@ wget https://github.com/alitari/kubexp/releases/download/${KUBEXP_RELEASE}/kubex
 chmod +x kubexp
 ```
 
-
 ### command line options
 
 Call `kubexp -help`
@@ -94,4 +92,5 @@ go test main/..
 ```
 
 ## Credits
+
 - [GOCUI](https://github.com/jroimartin/gocui) go framework for console user interfaces
