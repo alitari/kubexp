@@ -863,7 +863,7 @@ func (c *configType) createContexts() *configType {
 		}
 	}
 	if len(cs) == 0 {
-		fatalStderrlog.Fatalf("No contexts created for configfile '%s'. See logfile '%s' for details.", c.configFile, logFilePath)
+		fatalStderrlog.Fatalf("No contexts created for configfile '%s'. See logfile '%s' for details.", c.configFile, *logFilePath)
 	}
 	c.contexts = cs
 	return c
