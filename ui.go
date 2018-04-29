@@ -308,6 +308,14 @@ func currentResourceItemName() string {
 	return ""
 }
 
+func updateResource() {
+	tracelog.Printf("update resource")
+	g.Update(func(gui *gocui.Gui) error {
+		newResource()
+		return nil
+	})
+}
+
 func createWidgets() {
 	maxX, maxY = g.Size()
 	sepXAt := int(float64(maxX) * 0.75)

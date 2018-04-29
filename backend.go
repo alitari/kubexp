@@ -472,6 +472,13 @@ func (b *backendType) watch(apiPrefix, ress, ns string) error {
 				break
 			} else {
 				b.updateResourceItems(k, watchBytes)
+				if len(resourceMenu.widget.items) > 0 && len(namespaceList.widget.items) > 0 {
+					selRes := currentResource()
+					selNs := currentNamespace()
+					if selNs == ns && selRes.Name == ress {
+						updateResource()
+					}
+				}
 			}
 		}
 	}()
@@ -491,6 +498,7 @@ func (b *backendType) updateResourceItems(k string, watchBytes []byte) {
 	default:
 		errorlog.Printf("unknown watch type : %s", watch["type"])
 	}
+
 	tracelog.Printf("resource items count k: %s , count: %d ", k, len(b.resItems[k]))
 }
 

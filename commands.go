@@ -130,7 +130,6 @@ var previousResourceCommand = commandType{Name: "Previous resource", f: func(g *
 }}
 
 var reloadCommand = commandType{Name: "Reload", f: func(g *gocui.Gui, v *gocui.View) error {
-	backend.createWatches()
 	newResource()
 	return nil
 }}
@@ -158,15 +157,7 @@ var executeConfirmCommand = commandType{Name: "Execute command to confirm", f: f
 }}
 
 var deleteCommand = commandType{Name: "Delete resource", f: func(g *gocui.Gui, v *gocui.View) error {
-	tmp := resourceItemsList.widget.title
-	resourceItemsList.widget.title = "Deleting pod ..."
 	deleteResource()
-	backend.createWatches()
-	g.Update(func(gui *gocui.Gui) error {
-		newResource()
-		resourceItemsList.widget.title = tmp
-		return nil
-	})
 	return nil
 }}
 
