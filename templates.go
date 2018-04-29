@@ -136,12 +136,7 @@ func podExec(podName, containerName, command string) interface{} {
 }
 
 func podsForNode(nodeName string) interface{} {
-	pods, err := backend.resourceItems("", cfg.resourcesOfName("pods"))
-
-	if err != nil {
-		errorlog.Printf("error getting pods for node with name %s. error=%v", nodeName, err)
-		return ""
-	}
+	pods := backend.resourceItems("", cfg.resourcesOfName("pods"))
 
 	result := filterArray(pods, func(item interface{}) bool {
 		podnn := val(item, []interface{}{"spec", "nodeName"}, "").(string)
@@ -153,11 +148,7 @@ func podsForNode(nodeName string) interface{} {
 }
 
 func eventsFor(resourceType, name string) interface{} {
-	evs, err := backend.resourceItems(currentNamespace(), cfg.resourcesOfName("events"))
-	if err != nil {
-		errorlog.Printf("error getting events for %s with name %s. error=%v", resourceType, name, err)
-		return ""
-	}
+	evs := backend.resourceItems(currentNamespace(), cfg.resourcesOfName("events"))
 
 	result := filterArray(evs, func(item interface{}) bool {
 		ino := item.(map[string]interface{})["involvedObject"]
@@ -258,12 +249,13 @@ func usageOfNode(node interface{}) (ResourcesDef, ResourcesDef) {
 }
 
 func usageOfCluster() (ResourcesDef, ResourcesDef) {
-	pods, _ := backend.resourceItems("", cfg.resourcesOfName("pods"))
+	//TODO: ERROR currentNameSpace
+	pods := backend.resourceItems(currentNamespace(), cfg.resourcesOfName("pods"))
 	return usageOfPods(pods)
 }
 
 func resourcesOfCluster() (NodeResourcesDef, NodeResourcesDef) {
-	nodes, _ := backend.resourceItems("", cfg.resourcesOfName("nodes"))
+	nodes := backend.resourceItems("", cfg.resourcesOfName("nodes"))
 	rCap, rAllo := resourcesOfNode(nodes[0])
 	for _, n := range nodes[1:] {
 		cap, allo := resourcesOfNode(n)

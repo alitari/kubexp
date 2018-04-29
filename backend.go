@@ -1,10 +1,12 @@
 package kubexp
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"time"
@@ -120,16 +122,19 @@ func (v *cachekeyType) key() string {
 }
 
 type backendType struct {
+	cfg               *configType
 	context           contextType
-	cache             map[string]interface{}
+	resItems          map[string][]interface{}
+	watches           map[string]*io.ReadCloser
 	sorter            sorterType
 	restExecutor      func(httpMethod, url string, body interface{}) (string, error)
 	webSocketExecutor func(url string) (string, error)
 	webSocketConnect  func(url string, closeCallback func()) (chan []byte, chan []byte, error)
+	watchExecutor     func(url string) (*io.ReadCloser, error)
 }
 
-func newRestyBackend(context contextType) *backendType {
-	return &backendType{context: context,
+func newRestyBackend(cfg *configType, context contextType) *backendType {
+	return &backendType{cfg: cfg, context: context,
 		restExecutor: func(httpMethod, url string, body interface{}) (string, error) {
 			tracelog.Printf("rest call: %s %s", httpMethod, url)
 			if body != nil {
@@ -178,6 +183,24 @@ func newRestyBackend(context contextType) *backendType {
 			return websocketConnect(url, context.user.token, closeCallback)
 		},
 		sorter: &nameSorterType{ascending: true},
+		watchExecutor: func(url string) (*io.ReadCloser, error) {
+			client := &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{
+						InsecureSkipVerify: true,
+					},
+				},
+			}
+			req, err := http.NewRequest("GET", url, nil)
+			req.Header.Set("Authorization", "Bearer "+context.user.token)
+			response, err := client.Do(req)
+			if err != nil {
+				errorlog.Printf("watch request error: %s", err)
+				return nil, err
+			}
+
+			return &response.Body, nil
+		},
 	}
 }
 
@@ -192,29 +215,74 @@ type sorterType interface {
 	getAscending() bool
 }
 
-func (b *backendType) resourceItems(ns string, resource resourceType) ([]interface{}, error) {
-	r, err := b.getList(ns, resource)
+func (b *backendType) resourceItems(ns string, resource resourceType) []interface{} {
+	r := b.getList(ns, resource)
+	switch r.(type) {
+	case []interface{}:
+		unsorted := r.([]interface{})
+		b.sorter.setElements(unsorted)
+		sort.Sort(b.sorter)
+		ele := b.sorter.getElements()
+		return ele
+	}
+	return nil
+}
+
+func (b *backendType) getNamespaces() ([]string, error) {
+	res := b.cfg.resourcesOfName("namespaces")
+	rc, err := b.restCallAll(res.APIPrefix, res.Name, nil)
 	if err != nil {
 		return nil, err
 	}
-	switch r.(type) {
-	case map[string]interface{}:
-		it := r.(map[string]interface{})
-		its := it["items"]
-		switch its.(type) {
-		case ([]interface{}):
-			unsorted := its.([]interface{})
-			b.sorter.setElements(unsorted)
-			sort.Sort(b.sorter)
-			ele := b.sorter.getElements()
-			return ele, nil
-		}
+	rcUn := unmarshall(rc)
+	list := rcUn["items"].([]interface{})
+	tracelog.Printf("nameSpaceList %s", list)
+	nsList := make([]string, len(list))
+	for i, ns := range list {
+		nsList[i] = val(ns, []interface{}{"metadata", "name"}, "").(string)
 	}
-	return nil, nil
+	return nsList, nil
 }
 
-func (b *backendType) resetCache() {
-	b.cache = map[string]interface{}{}
+func (b *backendType) createWatches() error {
+	b.resItems = map[string][]interface{}{}
+	b.watches = map[string]*io.ReadCloser{}
+	nsList, err := b.getNamespaces()
+	if err != nil {
+		return err
+	}
+	tracelog.Printf("namespaces: %s", nsList)
+	for _, res := range cfg.resources {
+		if !res.Namespace {
+			err = b.watch(res.APIPrefix, res.Name, "")
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, ns := range nsList {
+		for _, res := range cfg.resources {
+			if res.Namespace {
+				err = b.watch(res.APIPrefix, res.Name, ns)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	}
+	time.Sleep(1000 * time.Millisecond)
+	return nil
+}
+
+func (b *backendType) closeWatches() {
+	tracelog.Printf("close watches %s", b.watches)
+	if b.watches != nil {
+		for k, v := range b.watches {
+			tracelog.Printf("Close watch %s", k)
+			(*v).Close()
+		}
+	}
 }
 
 func (b *backendType) availabiltyCheck() error {
@@ -222,42 +290,61 @@ func (b *backendType) availabiltyCheck() error {
 	return err
 }
 
-func (b *backendType) getList(ns string, resource resourceType) (interface{}, error) {
-	k := (&cachekeyType{ns, resource.Name, "", "list"}).key()
-	if b.cache[k] == nil {
-		var rc string
-		var err error
-		if resource.Namespace {
-			rc, err = b.restCall(http.MethodGet, resource.APIPrefix, resource.Name, ns, nil)
-		} else {
-			rc, err = b.restCallAll(resource.APIPrefix, resource.Name, nil)
-		}
-		rcUn := unmarshall(rc)
-		if err != nil {
-			return rcUn, err
-		}
-		b.cache[k] = rcUn
+func (b *backendType) getList(ns string, resource resourceType) interface{} {
+	var k string
+	if resource.Namespace {
+		k = (&cachekeyType{ns, resource.Name, "", "list"}).key()
+	} else {
+		k = (&cachekeyType{"", resource.Name, "", "list"}).key()
 	}
-	return b.cache[k], nil
+	return b.resItems[k]
 }
 
+// if b.cache[k] == nil {
+// 	var rc string
+// 	var err error
+// 	if resource.Namespace {
+// 		rc, err = b.restCall(http.MethodGet, resource.APIPrefix, resource.Name, ns, nil)
+// 		if b.watches[k] == nil {
+// 			body, err := b.watch(resource.APIPrefix, resource.Name, ns)
+// 			if err != nil {
+// 				errorlog.Printf("Return watch with error %v", err)
+// 				return nil, err
+// 			}
+// 			b.watches[k] = body
+// 		}
+// 	} else {
+// 		rc, err = b.restCallAll(resource.APIPrefix, resource.Name, nil)
+// 		if b.watches[k] == nil {
+// 			body, err := b.watchAll(resource.APIPrefix, resource.Name)
+// 			if err != nil {
+// 				errorlog.Printf("Return watch with error %v", err)
+// 				return nil, err
+// 			}
+// 			b.watches[k] = body
+// 			tracelog.Printf("set watch body k: %s, watches: %s, body: %s", k, b.watches, body)
+// 		}
+// 	}
+// 	rcUn := unmarshall(rc)
+// 	if err != nil {
+// 		return rcUn, err
+// 	}
+// 	b.cache[k] = rcUn
+// }
+
 func (b *backendType) getDetail(ns string, resource resourceType, resourceItem string, view viewType) (interface{}, error) {
-	k := (&cachekeyType{ns, resource.Name, resourceItem, view.Name}).key()
-	if b.cache[k] == nil {
-		var rc string
-		var err error
-		if resource.Namespace {
-			rc, err = b.restCall(http.MethodGet, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), ns, nil)
-		} else {
-			rc, err = b.restCallNoNs(http.MethodGet, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), nil)
-		}
-		rcUn := unmarshall(rc)
-		if err != nil {
-			return rcUn, err
-		}
-		b.cache[k] = rcUn
+	var rc string
+	var err error
+	if resource.Namespace {
+		rc, err = b.restCall(http.MethodGet, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), ns, nil)
+	} else {
+		rc, err = b.restCallNoNs(http.MethodGet, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), nil)
 	}
-	return b.cache[k], nil
+	rcUn := unmarshall(rc)
+	if err != nil {
+		return rcUn, err
+	}
+	return rcUn, nil
 }
 
 func (b *backendType) delete(ns string, resource resourceType, resourceItem string) (interface{}, error) {
@@ -275,21 +362,17 @@ func (b *backendType) delete(ns string, resource resourceType, resourceItem stri
 }
 
 func (b *backendType) readPodLogs(ns, podName, containerName string) (interface{}, error) {
-	k := (&cachekeyType{ns, "pods", podName + "/" + containerName, "readPodlogs"}).key()
-	if b.cache[k] == nil {
-		logs, err := b.restCall(http.MethodGet, "api/v1", fmt.Sprintf("pods/%s/log?container=%s&tailLines=%v", podName, containerName, 1000), ns, nil)
-		if err != nil {
-			return logs, err
-		}
-		logs = strings.Map(func(r rune) rune {
-			if r == 0x1b || r == '\r' {
-				return -1
-			}
-			return r
-		}, logs)
-		b.cache[k] = logs
+	logs, err := b.restCall(http.MethodGet, "api/v1", fmt.Sprintf("pods/%s/log?container=%s&tailLines=%v", podName, containerName, 1000), ns, nil)
+	if err != nil {
+		return logs, err
 	}
-	return b.cache[k], nil
+	logs = strings.Map(func(r rune) rune {
+		if r == 0x1b || r == '\r' {
+			return -1
+		}
+		return r
+	}, logs)
+	return logs, nil
 }
 
 func (b *backendType) scale(ns string, resource resourceType, deploymentName string, scale int) (interface{}, error) {
@@ -310,25 +393,21 @@ func (b *backendType) scale(ns string, resource resourceType, deploymentName str
 }
 
 func (b *backendType) execPodCommand(namespace, podName, containerName, command string) (interface{}, error) {
-	k := (&cachekeyType{namespace, "pods", podName + "/" + containerName, command}).key()
-	if b.cache[k] == nil {
-		var queryCommands bytes.Buffer
-		for _, qc := range strings.Split(command, " ") {
-			queryCommands.WriteString(fmt.Sprintf("command=%s&", qc))
-		}
-		stderr := "true"
-		stdin := "true"
-		stdout := "true"
-		tty := "false"
-		path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/exec?container=%s&%sstderr=%s&stdin=%s&stdout=%s&tty=%s", namespace, podName, containerName, queryCommands.String(), stderr, stdin, stdout, tty)
-		url := fmt.Sprintf("%s://%s:%s%s", "wss", b.context.Cluster.URL.Hostname(), b.context.Cluster.URL.Port(), path)
-		rp, err := b.webSocketExecutor(url)
-		if err != nil {
-			return rp, err
-		}
-		b.cache[k] = rp
+	var queryCommands bytes.Buffer
+	for _, qc := range strings.Split(command, " ") {
+		queryCommands.WriteString(fmt.Sprintf("command=%s&", qc))
 	}
-	return b.cache[k], nil
+	stderr := "true"
+	stdin := "true"
+	stdout := "true"
+	tty := "false"
+	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/exec?container=%s&%sstderr=%s&stdin=%s&stdout=%s&tty=%s", namespace, podName, containerName, queryCommands.String(), stderr, stdin, stdout, tty)
+	url := fmt.Sprintf("%s://%s:%s%s", "wss", b.context.Cluster.URL.Hostname(), b.context.Cluster.URL.Port(), path)
+	rp, err := b.webSocketExecutor(url)
+	if err != nil {
+		return rp, err
+	}
+	return rp, nil
 }
 
 func (b *backendType) execIntoPod(namespace, podName, cmd, container string, closeCallback func()) (chan []byte, chan []byte, error) {
@@ -362,12 +441,100 @@ func (b *backendType) restCallBatch(httpMethod, ress string, ns string, body int
 	return b.restExecutor(httpMethod, url, body)
 }
 
-func unmarshall(js string) map[string]interface{} {
+func (b *backendType) watch(apiPrefix, ress, ns string) error {
+	k := (&cachekeyType{ns, ress, "", "list"}).key()
+	if b.watches[k] != nil {
+		return fmt.Errorf("duplicate watch. key: %s ", k)
+	}
+	tracelog.Printf("watching key: %s", k)
+	var url string
+	if ns != "" {
+		url = fmt.Sprintf("%s/%s/watch/namespaces/%s/%s", b.context.Cluster.URL, apiPrefix, ns, ress)
+	} else {
+		url = fmt.Sprintf("%s/%s/watch/%s", b.context.Cluster.URL, apiPrefix, ress)
+	}
+	body, err := b.watchExecutor(url)
+	if err != nil {
+		errorlog.Printf("Return watch with error %v", err)
+		return err
+	}
+	go func() {
+		reader := bufio.NewReader(*body)
+		for {
+			//b := make([]byte, 0x10000)
+			watchBytes, err := reader.ReadBytes('\n')
+			if err != nil {
+				if err.Error() == "EOF" || err.Error() == "use of closed network connection" {
+					tracelog.Printf("Close watch url %s:\n reason: %v", url, err)
+				} else {
+					errorlog.Printf("Watch error url %s:\n error: %v", url, err)
+				}
+				break
+			} else {
+				b.updateResourceItems(k, watchBytes)
+			}
+		}
+	}()
+	b.watches[k] = body
+	return nil
+}
+
+func (b *backendType) updateResourceItems(k string, watchBytes []byte) {
+	watch := unmarshallBytes(watchBytes)
+	switch watch["type"] {
+	case "MODIFIED":
+		b.updateResourceItem(k, watch["object"].(map[string]interface{}))
+	case "ADDED":
+		b.addResourceItem(k, watch["object"].(map[string]interface{}))
+	case "DELETED":
+		b.deleteResourceItem(k, watch["object"].(map[string]interface{}))
+	default:
+		errorlog.Printf("unknown watch type : %s", watch["type"])
+	}
+	tracelog.Printf("resource items count k: %s , count: %d ", k, len(b.resItems[k]))
+}
+
+func (b *backendType) findResItem(k string, ri map[string]interface{}) int {
+	riName := val(ri, []interface{}{"metadata", "name"}, "")
+	items := b.resItems[k]
+	for i, item := range items {
+		if val(item, []interface{}{"metadata", "name"}, "") == riName {
+			return i
+		}
+	}
+	return -1
+}
+
+func (b *backendType) updateResourceItem(k string, ri map[string]interface{}) {
+	tracelog.Printf("update k: %s", k)
+	i := b.findResItem(k, ri)
+	items := b.resItems[k]
+	items[i] = ri
+}
+
+func (b *backendType) addResourceItem(k string, ri map[string]interface{}) {
+	tracelog.Printf("add k: %s", k)
+	items := b.resItems[k]
+	b.resItems[k] = append(items, ri)
+}
+
+func (b *backendType) deleteResourceItem(k string, ri map[string]interface{}) {
+	tracelog.Printf("delete k: %s", k)
+	i := b.findResItem(k, ri)
+	items := b.resItems[k]
+	b.resItems[k] = append(items[:i], items[i+1:]...)
+}
+
+func unmarshallBytes(b []byte) map[string]interface{} {
 	var dat map[string]interface{}
-	if err := json.Unmarshal([]byte(js), &dat); err != nil {
-		errorlog.Printf("can't unmarshall string '%s', error: %v", js, err)
+	if err := json.Unmarshal(b, &dat); err != nil {
+		errorlog.Printf("can't unmarshall bytes '%s', error: %v", string(b), err)
 	}
 	return dat
+}
+
+func unmarshall(js string) map[string]interface{} {
+	return unmarshallBytes([]byte(js))
 }
 
 func retrieveResourceStatus(conditions []interface{}) string {

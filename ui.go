@@ -66,12 +66,9 @@ var initState = stateType{
 	},
 	exitFunc: func(toState stateType) {
 		clusterList.widget.items = toIfc(cfg.contexts)
-		backend.resetCache()
+		backend.createWatches()
 		ns := cfg.resourcesOfName("namespaces")
-		ris, err := backend.resourceItems("", ns)
-		if err != nil {
-			errorlog.Printf("can't load namespaces: %v", err)
-		}
+		ris := backend.resourceItems("", ns)
 		namespaceList.widget.items = ris
 		resourceMenu.widget.items = resources()
 		clusterRes := clusterRes()
@@ -106,10 +103,7 @@ var browseState = stateType{
 			ns := currentNamespace()
 			selRes := currentResource()
 			resourceItemsList.widget.title = fmt.Sprintf("%s - Items", selRes.Name)
-			ris, err := backend.resourceItems(ns, selRes)
-			if err != nil {
-				showError(fmt.Sprintf("can't load %s of namespace %s ", selRes, ns), err)
-			}
+			ris := backend.resourceItems(ns, selRes)
 			resourceItemsList.widget.items = ris
 			resourceItemsList.widget.template = resourceListTpl(selRes)
 		}
@@ -264,7 +258,7 @@ func Run() {
 	infolog.Printf("-------------------------------------< Startup >---------------------------------------------\n")
 	cfg = newConfig(*configFile)
 	resourceCategories = cfg.allResourceCategories()
-	backend = newRestyBackend(cfg.contexts[0])
+	backend = newRestyBackend(cfg, cfg.contexts[0])
 	updateKubectlContext()
 
 	g, err = gocui.NewGui(gocui.OutputNormal)
@@ -391,13 +385,12 @@ func filterResources(res []resourceType) []interface{} {
 	ret := make([]interface{}, 0)
 	for _, r := range res {
 		ns := currentNamespace()
-		resItems, err := backend.resourceItems(ns, r)
-		if err != nil {
-			showError(fmt.Sprintf("Can't load %s items of namespace %s", r, ns), err)
-		}
+		resItems := backend.resourceItems(ns, r)
 
 		if len(resItems) > 0 {
 			ret = append(ret, r)
+		} else {
+			tracelog.Printf("no resourceItems for %s", r.Name)
 		}
 	}
 	return ret
@@ -465,11 +458,8 @@ func newResourceCategory() {
 
 	selRes := currentResource()
 	ns := currentNamespace()
-	resItems, err := backend.resourceItems(ns, selRes)
-	if err != nil {
-		showError(fmt.Sprintf("Can't load %s items of namespace %s", selRes, ns), err)
-		return
-	}
+	resItems := backend.resourceItems(ns, selRes)
+
 	resourceItemsList.widget.items = resItems
 	resourceItemsList.widget.title = fmt.Sprintf("%s - Items", selRes.Name)
 	resourceItemsList.widget.template = resourceListTpl(selRes)
@@ -479,14 +469,12 @@ func newResourceCategory() {
 }
 
 func newContext() {
-	backend = newRestyBackend(cfg.contexts[clusterList.widget.selectedItem])
-	backend.resetCache()
+	backend.closeWatches()
+	backend = newRestyBackend(cfg, cfg.contexts[clusterList.widget.selectedItem])
+	backend.createWatches()
 	res := cfg.resourcesOfName("namespaces")
-	resItems, err := backend.resourceItems("", res)
-	if err != nil {
-		showError(fmt.Sprintf("Can't load %s items", res), err)
-		return
-	}
+	resItems := backend.resourceItems("", res)
+
 	namespaceList.widget.items = resItems
 	namespaceList.widget.selectedItem = 0
 	clusterRes := clusterRes()
@@ -588,11 +576,8 @@ func newResource() {
 	selRes := currentResource()
 	selNs := currentNamespace()
 
-	resItems, err := backend.resourceItems(selNs, selRes)
-	if err != nil {
-		showError(fmt.Sprintf("Can't load %s items of namespace ", selRes.Name, selNs), err)
-		return
-	}
+	resItems := backend.resourceItems(selNs, selRes)
+
 	resourceItemsList.widget.items = resItems
 	resourceItemsList.widget.title = fmt.Sprintf("%s - Items", selRes.Name)
 	resourceItemsList.widget.template = resourceListTpl(selRes)
