@@ -26,15 +26,7 @@ func newScaleCommand(name string, replicas int) commandType {
 	var scaleCommand = commandType{Name: name, f: func(g *gocui.Gui, v *gocui.View) error {
 		res := currentResource()
 		if res.Name == "deployments" || res.Name == "replicationcontrollers" || res.Name == "replicasets" || res.Name == "daemonsets" || res.Name == "statefulsets" {
-			tmp := resourceItemsList.widget.title
-			resourceItemsList.widget.title = fmt.Sprintf("Scaling to %v replicas...", replicas)
 			scaleResource(replicas)
-			backend.createWatches()
-			g.Update(func(gui *gocui.Gui) error {
-				newResource()
-				resourceItemsList.widget.title = tmp
-				return nil
-			})
 		}
 		return nil
 	}}

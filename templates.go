@@ -266,13 +266,16 @@ func resourcesOfCluster() (NodeResourcesDef, NodeResourcesDef) {
 }
 
 func usageOfPods(pods []interface{}) (ResourcesDef, ResourcesDef) {
-	rpReq, rpLimit := resourcesOfPod(pods[0])
-	for _, p := range pods[1:] {
-		req, lim := resourcesOfPod(p)
-		rpReq.add(req)
-		rpLimit.add(lim)
+	if len(pods) > 0 {
+		rpReq, rpLimit := resourcesOfPod(pods[0])
+		for _, p := range pods[1:] {
+			req, lim := resourcesOfPod(p)
+			rpReq.add(req)
+			rpLimit.add(lim)
+		}
+		return rpReq, rpLimit
 	}
-	return rpReq, rpLimit
+	return ResourcesDef{}, ResourcesDef{}
 }
 
 func resourcesOfContainer(container interface{}) (ResourcesDef, ResourcesDef) {
@@ -688,6 +691,10 @@ func valArray(node interface{}, path []interface{}) []interface{} {
 	default:
 		return []interface{}{}
 	}
+}
+
+func resItemName(ri interface{}) string {
+	return val(ri, []interface{}{"metadata", "name"}, "").(string)
 }
 
 func val(node interface{}, path []interface{}, notFoundVal string) interface{} {

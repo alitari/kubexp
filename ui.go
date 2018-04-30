@@ -603,11 +603,7 @@ func setResourceItemDetailsPart() {
 	resourceItemDetailsWidget.xOffset = 0
 	resourceItemDetailsWidget.yOffset = 0
 
-	details, err := backend.getDetail(ns, res, rname, view)
-	if err != nil {
-		showError(fmt.Sprintf("Can't load %s details of namespace %s from item '%s'  ", res, ns, rname), err)
-		return
-	}
+	details := backend.getDetail(ns, res, rname)
 
 	resourceItemDetailsWidget.setContent(details, resourceTpl(res, view))
 	resourceItemDetailsWidget.title = fmt.Sprintf("%s - %s  details ", res.Name, rname)
