@@ -173,16 +173,20 @@ type sorterType interface {
 }
 
 func (b *backendType) resourceItems(ns string, resource resourceType) []interface{} {
-	r := b.getList(ns, resource)
-	switch r.(type) {
-	case []interface{}:
-		unsorted := r.([]interface{})
-		b.sorter.setElements(unsorted)
-		sort.Sort(b.sorter)
-		ele := b.sorter.getElements()
-		return ele
+	var r []interface{}
+	if !resource.Namespace || ns != "" {
+		r = b.resItems[getKey(ns, resource)]
+	} else {
+		for k, v := range b.resItems {
+			if strings.Contains(k, resource.Name) {
+				r = append(r, v...)
+			}
+		}
 	}
-	return nil
+	b.sorter.setElements(r)
+	sort.Sort(b.sorter)
+	ele := b.sorter.getElements()
+	return ele
 }
 
 func (b *backendType) getNamespaces() ([]string, error) {
@@ -251,10 +255,6 @@ func getKey(ns string, resource resourceType) string {
 		ns = ""
 	}
 	return fmt.Sprintf("%s/%s", ns, resource.Name)
-}
-
-func (b *backendType) getList(ns string, resource resourceType) interface{} {
-	return b.resItems[getKey(ns, resource)]
 }
 
 func (b *backendType) getDetail(ns string, resource resourceType, riName string) interface{} {

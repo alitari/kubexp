@@ -249,8 +249,7 @@ func usageOfNode(node interface{}) (ResourcesDef, ResourcesDef) {
 }
 
 func usageOfCluster() (ResourcesDef, ResourcesDef) {
-	//TODO: ERROR currentNameSpace
-	pods := backend.resourceItems(currentNamespace(), cfg.resourcesOfName("pods"))
+	pods := backend.resourceItems("", cfg.resourcesOfName("pods"))
 	return usageOfPods(pods)
 }
 
