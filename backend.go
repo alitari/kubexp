@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"sort"
 	"strings"
 	"time"
@@ -14,8 +15,6 @@ import (
 	"encoding/json"
 
 	"net/http"
-
-	"gopkg.in/resty.v0"
 )
 
 type nameSorterType struct {
@@ -116,55 +115,42 @@ type backendType struct {
 	resItems          map[string][]interface{}
 	watches           map[string]*io.ReadCloser
 	sorter            sorterType
-	restExecutor      func(httpMethod, url string, body interface{}) (string, error)
+	restExecutor      func(httpMethod, url, body string) (*http.Response, error)
 	webSocketExecutor func(url string) (string, error)
 	webSocketConnect  func(url string, closeCallback func()) (chan []byte, chan []byte, error)
-	watchExecutor     func(url string) (*io.ReadCloser, error)
 }
 
 func newRestyBackend(cfg *configType, context contextType) *backendType {
 	return &backendType{cfg: cfg, context: context,
-		restExecutor: func(httpMethod, url string, body interface{}) (string, error) {
+		restExecutor: func(httpMethod, url, body string) (*http.Response, error) {
 			tracelog.Printf("rest call: %s %s", httpMethod, url)
-			if body != nil {
-				tracelog.Printf("body: '%v'", body)
+			if body != "" {
+				tracelog.Printf("body: '%s'", body)
 			}
-			resty.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
-			resty.SetTimeout(time.Duration(3 * time.Second))
-			rest := resty.R().SetHeader("Authorization", "Bearer "+context.user.token)
-
-			var resp *resty.Response
-			var err error
-			switch httpMethod {
-			case http.MethodGet:
-				resp, err = rest.Get(url)
-			case http.MethodDelete:
-				resp, err = rest.Delete(url)
-			case http.MethodPatch:
-				rest := rest.SetHeader("Content-Type", "application/strategic-merge-patch+json").SetHeader("Accept", "*/*")
-				resp, err = rest.SetBody(body).Patch(url)
+			client := &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: &tls.Config{
+						InsecureSkipVerify: true,
+					},
+					IdleConnTimeout: 3 * time.Second,
+				},
 			}
+			req, err := http.NewRequest(httpMethod, url, strings.NewReader(body))
 			if err != nil {
-				mes := fmt.Sprintf("\nError: %v", err)
-				errorlog.Print(mes)
-				return mes, err
+				errorlog.Printf("can't create request url: %s, error: %v", url, err)
+				return nil, err
 			}
-			var rt string
-			switch resp.StatusCode() {
-			case http.StatusOK:
-				rt = resp.String()
-				tracelog.Printf("resources found for url: %s", url)
-			case http.StatusNotFound:
-				tracelog.Printf("no resources found for url: %s", url)
-				rt = resp.String()
-			default:
-				mes := fmt.Sprintf("Request: %s '%s'\nBody: %v \nHTTP-Status: %d \nResponse: \n%s", httpMethod, url, body, resp.StatusCode(), resp.String())
-				errorlog.Printf(mes)
-				rt = mes
-				err = errors.New(mes)
+			req.Header.Set("Authorization", "Bearer "+context.user.token)
+			if httpMethod == http.MethodPatch {
+				req.Header.Add("Content-Type", "application/strategic-merge-patch+json")
+				req.Header.Add("Accept", "*/*")
 			}
-			return rt, err
+
+			response, err := client.Do(req)
+
+			return response, err
 		},
+
 		webSocketExecutor: func(url string) (string, error) {
 			return websocketExecutor(url, context.user.token)
 		},
@@ -172,29 +158,6 @@ func newRestyBackend(cfg *configType, context contextType) *backendType {
 			return websocketConnect(url, context.user.token, closeCallback)
 		},
 		sorter: &nameSorterType{ascending: true},
-		watchExecutor: func(url string) (*io.ReadCloser, error) {
-			client := &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: &tls.Config{
-						InsecureSkipVerify: true,
-					},
-				},
-			}
-			req, err := http.NewRequest("GET", url, nil)
-			if err != nil {
-				errorlog.Printf("can't create request url: %s, error: %v", url, err)
-				return nil, err
-			}
-
-			req.Header.Set("Authorization", "Bearer "+context.user.token)
-			response, err := client.Do(req)
-			if err != nil {
-				errorlog.Printf("watch request error: %s", err)
-				return nil, err
-			}
-
-			return &response.Body, nil
-		},
 	}
 }
 
@@ -224,7 +187,7 @@ func (b *backendType) resourceItems(ns string, resource resourceType) []interfac
 
 func (b *backendType) getNamespaces() ([]string, error) {
 	res := b.cfg.resourcesOfName("namespaces")
-	rc, err := b.restCallAll(res.APIPrefix, res.Name, nil)
+	rc, err := b.restCallAll(res.APIPrefix, res.Name, "")
 	if err != nil {
 		return nil, err
 	}
@@ -279,7 +242,7 @@ func (b *backendType) closeWatches() {
 }
 
 func (b *backendType) availabiltyCheck() error {
-	_, err := b.restCallAll("api/v1", "nodes", nil)
+	_, err := b.restCallAll("api/v1", "nodes", "")
 	return err
 }
 
@@ -302,9 +265,9 @@ func (b *backendType) delete(ns string, resource resourceType, resourceItem stri
 	var rc string
 	var err error
 	if resource.Namespace {
-		rc, err = b.restCall(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), ns, nil)
+		rc, err = b.restCall(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), ns, "")
 	} else {
-		rc, err = b.restCallNoNs(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), nil)
+		rc, err = b.restCallNoNs(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), "")
 	}
 	if err != nil {
 		return rc, err
@@ -313,7 +276,7 @@ func (b *backendType) delete(ns string, resource resourceType, resourceItem stri
 }
 
 func (b *backendType) readPodLogs(ns, podName, containerName string) (interface{}, error) {
-	logs, err := b.restCall(http.MethodGet, "api/v1", fmt.Sprintf("pods/%s/log?container=%s&tailLines=%v", podName, containerName, 1000), ns, nil)
+	logs, err := b.restCall(http.MethodGet, "api/v1", fmt.Sprintf("pods/%s/log?container=%s&tailLines=%v", podName, containerName, 1000), ns, "")
 	if err != nil {
 		return logs, err
 	}
@@ -327,7 +290,7 @@ func (b *backendType) readPodLogs(ns, podName, containerName string) (interface{
 }
 
 func (b *backendType) scale(ns string, resource resourceType, deploymentName string, scale int) (interface{}, error) {
-	depDetail, err := b.restCall(http.MethodGet, "apis/extensions/v1beta1", fmt.Sprintf("%s/%s", resource.Name, deploymentName), ns, nil)
+	depDetail, err := b.restCall(http.MethodGet, "apis/extensions/v1beta1", fmt.Sprintf("%s/%s", resource.Name, deploymentName), ns, "")
 	if err != nil {
 		return depDetail, err
 	}
@@ -372,24 +335,55 @@ func (b *backendType) execIntoPod(namespace, podName, cmd, container string, clo
 	return b.webSocketConnect(url, closeCallback)
 }
 
-func (b *backendType) restCallAll(apiPrefix, ress string, body interface{}) (string, error) {
-	url := fmt.Sprintf("%s/%s/%s", b.context.Cluster.URL, apiPrefix, ress)
-	return b.restExecutor(http.MethodGet, url, body)
+func (b *backendType) handleResponse(httpMethod, url, reqBody string, resp *http.Response, err error) (string, error) {
+	if err != nil {
+		mes := fmt.Sprintf("\nError: %v", err)
+		errorlog.Print(mes)
+		return mes, err
+	}
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		mes := fmt.Sprintf("\nError reading response: %v", err)
+		errorlog.Print(mes)
+		return mes, err
+	}
+	resp.Body.Close()
+	switch resp.StatusCode {
+	case http.StatusOK:
+		tracelog.Printf("resources found for url: %s", url)
+		return string(respBody), err
+	case http.StatusNotFound:
+		tracelog.Printf("no resources found for url: %s", url)
+		return string(respBody), err
+	default:
+		mes := fmt.Sprintf("Request: %s '%s'\nBody: %s \nHTTP-Status: %d \nResponse: \n%s", httpMethod, url, reqBody, resp.StatusCode, string(respBody))
+		errorlog.Printf(mes)
+		return mes, errors.New(mes)
+	}
 }
 
-func (b *backendType) restCall(httpMethod, apiPrefix, ress, ns string, body interface{}) (string, error) {
+func (b *backendType) restCallAll(apiPrefix, ress string, body string) (string, error) {
+	url := fmt.Sprintf("%s/%s/%s", b.context.Cluster.URL, apiPrefix, ress)
+	resp, err := b.restExecutor(http.MethodGet, url, body)
+	return b.handleResponse(http.MethodGet, url, body, resp, err)
+}
+
+func (b *backendType) restCall(httpMethod, apiPrefix, ress, ns string, body string) (string, error) {
 	url := fmt.Sprintf("%s/%s/namespaces/%s/%s", b.context.Cluster.URL, apiPrefix, ns, ress)
-	return b.restExecutor(httpMethod, url, body)
+	resp, err := b.restExecutor(httpMethod, url, body)
+	return b.handleResponse(httpMethod, url, body, resp, err)
 }
 
-func (b *backendType) restCallNoNs(httpMethod, apiPrefix, ress string, body interface{}) (string, error) {
+func (b *backendType) restCallNoNs(httpMethod, apiPrefix, ress string, body string) (string, error) {
 	url := fmt.Sprintf("%s/%s/%s", b.context.Cluster.URL, apiPrefix, ress)
-	return b.restExecutor(httpMethod, url, body)
+	resp, err := b.restExecutor(httpMethod, url, body)
+	return b.handleResponse(httpMethod, url, body, resp, err)
 }
 
-func (b *backendType) restCallBatch(httpMethod, ress string, ns string, body interface{}) (string, error) {
+func (b *backendType) restCallBatch(httpMethod, ress string, ns string, body string) (string, error) {
 	url := fmt.Sprintf("%s/apis/batch/v1/namespaces/%s/%s", b.context.Cluster.URL, ns, ress)
-	return b.restExecutor(httpMethod, url, body)
+	resp, err := b.restExecutor(httpMethod, url, body)
+	return b.handleResponse(httpMethod, url, body, resp, err)
 }
 
 func (b *backendType) watch(apiPrefix string, ress resourceType, ns string) error {
@@ -404,11 +398,12 @@ func (b *backendType) watch(apiPrefix string, ress resourceType, ns string) erro
 	} else {
 		url = fmt.Sprintf("%s/%s/watch/%s", b.context.Cluster.URL, apiPrefix, ress.Name)
 	}
-	body, err := b.watchExecutor(url)
+	resp, err := b.restExecutor(http.MethodGet, url, "")
 	if err != nil {
 		errorlog.Printf("Return watch with error %v", err)
 		return err
 	}
+	body := &resp.Body
 	go func() {
 		reader := bufio.NewReader(*body)
 		for {
