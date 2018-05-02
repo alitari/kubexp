@@ -413,7 +413,9 @@ func (b *backendType) watch(apiPrefix string, ress resourceType, ns string) erro
 				if err.Error() == "EOF" || err.Error() == "use of closed network connection" {
 					tracelog.Printf("Close watch url %s:\n reason: %v", url, err)
 				} else {
-					errorlog.Printf("Watch error url %s:\n error: %v", url, err)
+					mess := fmt.Sprintf("Watch error url %s:\n error: %v", url, err)
+					errorlog.Print(mess)
+					showError(mess, err)
 				}
 				break
 			} else {
@@ -454,23 +456,24 @@ func (b *backendType) resItemByName(k, name string) interface{} {
 
 func (b *backendType) updateResourceItems(k string, watchBytes []byte) {
 	watch := unmarshallBytes(watchBytes)
+	watchObj := watch["object"].(map[string]interface{})
 	switch watch["type"] {
 	case "MODIFIED":
-		b.updateResourceItem(k, watch["object"].(map[string]interface{}))
+		b.updateResourceItem(k, watchObj)
 	case "ADDED":
-		b.addResourceItem(k, watch["object"].(map[string]interface{}))
+		b.addResourceItem(k, watchObj)
 	case "DELETED":
-		b.deleteResourceItem(k, watch["object"].(map[string]interface{}))
+		b.deleteResourceItem(k, watchObj)
 	default:
 		errorlog.Printf("unknown watch type , k: %s, watch: %s", k, watch)
 	}
 
-	tracelog.Printf("resource items count k: %s , count: %d ", k, len(b.resItems[k]))
+	//tracelog.Printf("resource items count k: %s , count: %d ", k, len(b.resItems[k]))
 }
 
 func (b *backendType) updateResourceItem(k string, ri map[string]interface{}) {
 	name := resItemName(ri)
-	tracelog.Printf("update ri: (%s, %s)", k, name)
+	//tracelog.Printf("update ri: (%s, %s)", k, name)
 	i := b.indexOfResItemByName(k, name)
 	if i > -1 {
 		items := b.resItems[k]
@@ -481,8 +484,8 @@ func (b *backendType) updateResourceItem(k string, ri map[string]interface{}) {
 }
 
 func (b *backendType) addResourceItem(k string, ri map[string]interface{}) {
-	name := resItemName(ri)
-	tracelog.Printf("add ri: (%s, %s)", k, name)
+	//name := resItemName(ri)
+	//tracelog.Printf("add ri: (%s, %s)", k, name)
 	items := b.resItems[k]
 	b.resItems[k] = append(items, ri)
 }

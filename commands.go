@@ -121,11 +121,6 @@ var previousResourceCommand = commandType{Name: "Previous resource", f: func(g *
 	return nil
 }}
 
-var reloadCommand = commandType{Name: "Reload", f: func(g *gocui.Gui, v *gocui.View) error {
-	newResource()
-	return nil
-}}
-
 func newConfirmCommand(name string, command commandType) commandType {
 	var confirmCommand = commandType{Name: name, f: func(g *gocui.Gui, v *gocui.View) error {
 		showConfirm(fmt.Sprintf("Delete %s from %s ?", currentResourceItemName(), currentResource().Name), command)

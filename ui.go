@@ -66,7 +66,10 @@ var initState = stateType{
 	},
 	exitFunc: func(toState stateType) {
 		clusterList.widget.items = toIfc(cfg.contexts)
-		backend.createWatches()
+		err := backend.createWatches()
+		if err != nil {
+			errorlog.Panicf("Can't connect to api server. url:%s, error: %v", backend.context.Cluster.URL, err)
+		}
 		ns := cfg.resourcesOfName("namespaces")
 		ris := backend.resourceItems("", ns)
 		namespaceList.widget.items = ris
@@ -479,7 +482,10 @@ func newResourceCategory() {
 func newContext() {
 	backend.closeWatches()
 	backend = newRestyBackend(cfg, cfg.contexts[clusterList.widget.selectedItem])
-	backend.createWatches()
+	err := backend.createWatches()
+	if err != nil {
+		showError(fmt.Sprintf("Can't connect to api server, url:%s ", backend.context.Cluster.URL), err)
+	}
 	res := cfg.resourcesOfName("namespaces")
 	resItems := backend.resourceItems("", res)
 
@@ -695,7 +701,6 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'r', mod: gocui.ModNone}, nextResourceCategoryCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextResourceItemListPageCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousResourceItemListPageCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeySpace, mod: gocui.ModNone}, reloadCommand)
 
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyDelete, mod: gocui.ModNone}, deleteConfirmCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '+', mod: gocui.ModNone}, scaleUpCommand)
