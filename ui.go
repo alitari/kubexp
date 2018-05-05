@@ -70,9 +70,6 @@ var initState = stateType{
 		if err != nil {
 			errorlog.Panicf("Can't connect to api server. url:%s, error: %v", backend.context.Cluster.URL, err)
 		}
-		ns := cfg.resourcesOfName("namespaces")
-		ris := backend.resourceItems("", ns)
-		namespaceList.widget.items = ris
 		resourceMenu.widget.items = resources()
 		clusterRes := clusterRes()
 		clusterResourcesWidget.setContent(clusterRes, tpl("clusterResources", clusterResourcesTemplate))
@@ -103,8 +100,8 @@ var browseState = stateType{
 	name: "browseState",
 	enterFunc: func(fromState stateType) {
 		if fromState.name == initState.name {
-			ns := currentNamespace()
-			selRes := currentResource()
+			ns := selectedNamespace()
+			selRes := selectedResource()
 			resourceItemsList.widget.title = fmt.Sprintf("%s - Items", selRes.Name)
 			ris := backend.resourceItems(ns, selRes)
 			resourceItemsList.widget.items = ris
@@ -204,6 +201,8 @@ var loadingState = stateType{
 	},
 }
 
+var namespaceALL = map[string]interface{}{"metadata": map[string]interface{}{"name": "*ALL*"}}
+
 var confirmCommand commandType
 
 var portforwardProxies = map[string][]*portforwardProxy{}
@@ -261,7 +260,7 @@ func Run() {
 	infolog.Printf("-------------------------------------< Startup >---------------------------------------------\n")
 	cfg = newConfig(*configFile)
 	resourceCategories = cfg.allResourceCategories()
-	backend = newRestyBackend(cfg, cfg.contexts[0])
+	backend = newBackend(cfg, cfg.contexts[0])
 	updateKubectlContext()
 
 	g, err = gocui.NewGui(gocui.OutputNormal)
@@ -292,21 +291,28 @@ func parseFlags() {
 	flag.Parse()
 }
 
-func currentNamespace() string {
-	return resourceName(namespaceList.widget.items[namespaceList.widget.selectedItem])
+func selectedNamespace() string {
+	return resItemName(namespaceList.widget.items[namespaceList.widget.selectedItem])
 }
 
-func currentResource() resourceType {
+func selectedResource() resourceType {
 	return resourceMenu.widget.items[resourceMenu.widget.selectedItem].(resourceType)
 }
 
-func currentResourceItemDetailsView() viewType {
+func selectedResourceItemDetailsView() viewType {
 	return resourcesItemDetailsMenu.widget.items[resourcesItemDetailsMenu.widget.selectedItem].(viewType)
 }
 
-func currentResourceItemName() string {
+func selectedResourceItemName() string {
 	if len(resourceItemsList.widget.items) > 0 {
-		return resourceName(resourceItemsList.widget.items[resourceItemsList.widget.selectedItem])
+		return resItemName(resourceItemsList.widget.items[resourceItemsList.widget.selectedItem])
+	}
+	return ""
+}
+
+func selectedResourceItemNamespace() string {
+	if len(resourceItemsList.widget.items) > 0 {
+		return resItemNamespace(resourceItemsList.widget.items[resourceItemsList.widget.selectedItem])
 	}
 	return ""
 }
@@ -315,6 +321,17 @@ func updateResource() {
 	tracelog.Printf("update resource")
 	g.Update(func(gui *gocui.Gui) error {
 		newResource()
+		return nil
+	})
+}
+
+func updateNamespaces() {
+	tracelog.Printf("update namespace")
+	g.Update(func(gui *gocui.Gui) error {
+		nsType := cfg.resourcesOfName("namespaces")
+		ris := backend.resourceItems("", nsType)
+		namespaceList.widget.items = []interface{}{namespaceALL}
+		namespaceList.widget.items = append(namespaceList.widget.items, ris...)
 		return nil
 	})
 }
@@ -344,6 +361,7 @@ func createWidgets() {
 	namespaceList.widget.visible = true
 	namespaceList.widget.frame = true
 	namespaceList.widget.template = tpl("namespace", `{{.metadata.name | printf "%-50.50s" }}`)
+	namespaceList.widget.items = []interface{}{namespaceALL}
 
 	resourceMenu = newNmenu("resourcesMenu", 1, 4, maxX-2, 16)
 	resourceMenu.widget.visible = true
@@ -384,7 +402,7 @@ func createWidgets() {
 }
 
 func resourceItemDetailsViews() []interface{} {
-	res := currentResource()
+	res := selectedResource()
 	ret := make([]interface{}, 0)
 	for _, v := range cfg.detailViews(res) {
 		ret = append(ret, v)
@@ -395,7 +413,7 @@ func resourceItemDetailsViews() []interface{} {
 func filterResources(res []resourceType) []interface{} {
 	ret := make([]interface{}, 0)
 	for _, r := range res {
-		ns := currentNamespace()
+		ns := selectedNamespace()
 		resItems := backend.resourceItems(ns, r)
 
 		if len(resItems) > 0 {
@@ -467,8 +485,8 @@ func newResourceCategory() {
 	resourceMenu.widget.selectedItem = 0
 	resourceMenu.widget.items = resources()
 
-	selRes := currentResource()
-	ns := currentNamespace()
+	selRes := selectedResource()
+	ns := selectedNamespace()
 	resItems := backend.resourceItems(ns, selRes)
 
 	resourceItemsList.widget.items = resItems
@@ -481,7 +499,7 @@ func newResourceCategory() {
 
 func newContext() {
 	backend.closeWatches()
-	backend = newRestyBackend(cfg, cfg.contexts[clusterList.widget.selectedItem])
+	backend = newBackend(cfg, cfg.contexts[clusterList.widget.selectedItem])
 	err := backend.createWatches()
 	if err != nil {
 		showError(fmt.Sprintf("Can't connect to api server, url:%s ", backend.context.Cluster.URL), err)
@@ -567,9 +585,9 @@ func ageSorting() {
 }
 
 func deleteResource() {
-	ns := currentNamespace()
-	res := currentResource()
-	rname := currentResourceItemName()
+	ns := selectedResourceItemNamespace()
+	res := selectedResource()
+	rname := selectedResourceItemName()
 	_, err := backend.delete(ns, res, rname)
 	if err != nil {
 		showError(fmt.Sprintf("Can't delete %s on namespace %s with name '%s' ", res.Name, ns, rname), err)
@@ -577,9 +595,9 @@ func deleteResource() {
 }
 
 func scaleResource(replicas int) {
-	res := currentResource()
-	ns := currentNamespace()
-	rname := currentResourceItemName()
+	res := selectedResource()
+	rname := selectedResourceItemName()
+	ns := selectedResourceItemNamespace()
 	_, err := backend.scale(ns, res, rname, replicas)
 	if err != nil {
 		showError(fmt.Sprintf("Can't scale %s on namespace %s with name '%s' ", res.Name, ns, rname), err)
@@ -587,8 +605,8 @@ func scaleResource(replicas int) {
 }
 
 func newResource() {
-	selRes := currentResource()
-	selNs := currentNamespace()
+	selRes := selectedResource()
+	selNs := selectedNamespace()
 
 	resItems := backend.resourceItems(selNs, selRes)
 
@@ -601,15 +619,14 @@ func newResource() {
 
 func setResourceItemDetailsPart() {
 
-	ns := currentNamespace()
-	res := currentResource()
-	rname := currentResourceItemName()
-	view := currentResourceItemDetailsView()
+	res := selectedResource()
+	rname := selectedResourceItemName()
+	view := selectedResourceItemDetailsView()
 
 	resourceItemDetailsWidget.xOffset = 0
 	resourceItemDetailsWidget.yOffset = 0
 
-	details := backend.getDetail(ns, res, rname)
+	details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
 
 	resourceItemDetailsWidget.setContent(details, resourceTpl(res, view))
 	resourceItemDetailsWidget.title = fmt.Sprintf("%s - %s  details ", res.Name, rname)
@@ -631,8 +648,7 @@ func findInResourceItemDetails(text string) bool {
 	return resourceItemDetailsWidget.find(text)
 }
 
-func createPortforwardProxy(podName string, pm portMapping) error {
-	ns := currentNamespace()
+func createPortforwardProxy(ns, podName string, pm portMapping) error {
 	p := newPortforwardProxy(ns, podName, pm)
 	k := p.namespace + "/" + p.pod
 	if portforwardProxies[k] == nil {
@@ -653,8 +669,7 @@ func removeAllPortforwardProxies() error {
 	return nil
 }
 
-func removePortforwardProxyofPod(podName string) error {
-	ns := currentNamespace()
+func removePortforwardProxyofPod(ns, podName string) error {
 	k := ns + "/" + podName
 	return removePortforwardProxy(k)
 }

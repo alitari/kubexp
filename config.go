@@ -871,7 +871,7 @@ func (c *configType) createContexts() *configType {
 }
 
 func (c *configType) isAvailable(ct contextType) bool {
-	be := newRestyBackend(c, ct)
+	be := newBackend(c, ct)
 	err := be.availabiltyCheck()
 	return err == nil
 }

@@ -123,12 +123,12 @@ func decode64(it interface{}) string {
 }
 
 func podLog(podName, containerName string) interface{} {
-	logs, _ := backend.readPodLogs(currentNamespace(), podName, containerName)
+	logs, _ := backend.readPodLogs(selectedResourceItemNamespace(), podName, containerName)
 	return logs
 }
 
 func podExec(podName, containerName, command string) interface{} {
-	resp, err := backend.execPodCommand(currentNamespace(), podName, containerName, command)
+	resp, err := backend.execPodCommand(selectedResourceItemNamespace(), podName, containerName, command)
 	if err != nil {
 		return fmt.Sprintf("error=%v", err)
 	}
@@ -136,7 +136,8 @@ func podExec(podName, containerName, command string) interface{} {
 }
 
 func podsForNode(nodeName string) interface{} {
-	pods := backend.resourceItems("", cfg.resourcesOfName("pods"))
+	podType := cfg.resourcesOfName("pods")
+	pods := backend.resourceItems("", podType)
 
 	result := filterArray(pods, func(item interface{}) bool {
 		podnn := val(item, []interface{}{"spec", "nodeName"}, "").(string)
@@ -148,7 +149,8 @@ func podsForNode(nodeName string) interface{} {
 }
 
 func eventsFor(resourceType, name string) interface{} {
-	evs := backend.resourceItems(currentNamespace(), cfg.resourcesOfName("events"))
+	eventType := cfg.resourcesOfName("events")
+	evs := backend.resourceItems(selectedResourceItemNamespace(), eventType)
 
 	result := filterArray(evs, func(item interface{}) bool {
 		ino := item.(map[string]interface{})["involvedObject"]
@@ -244,17 +246,19 @@ func resourcesOfNode(node interface{}) (NodeResourcesDef, NodeResourcesDef) {
 }
 
 func usageOfNode(node interface{}) (ResourcesDef, ResourcesDef) {
-	pods := podsForNode(resourceName(node)).([]interface{})
+	pods := podsForNode(resItemName(node)).([]interface{})
 	return usageOfPods(pods)
 }
 
 func usageOfCluster() (ResourcesDef, ResourcesDef) {
-	pods := backend.resourceItems("", cfg.resourcesOfName("pods"))
+	podType := cfg.resourcesOfName("pods")
+	pods := backend.resourceItems("*ALL*", podType)
 	return usageOfPods(pods)
 }
 
 func resourcesOfCluster() (NodeResourcesDef, NodeResourcesDef) {
-	nodes := backend.resourceItems("", cfg.resourcesOfName("nodes"))
+	nodeType := cfg.resourcesOfName("nodes")
+	nodes := backend.resourceItems("", nodeType)
 	rCap, rAllo := resourcesOfNode(nodes[0])
 	for _, n := range nodes[1:] {
 		cap, allo := resourcesOfNode(n)
@@ -439,10 +443,6 @@ func marshalYaml(data interface{}) string {
 	return string(b)
 }
 
-func resourceName(it interface{}) string {
-	return val(it, []interface{}{"metadata", "name"}, "not found").(string)
-}
-
 func labels(it interface{}) map[string]interface{} {
 	return valMap(it, []interface{}{"metadata", "labels"})
 }
@@ -463,8 +463,8 @@ func ports(it interface{}) []containerPort {
 }
 
 func portForwardPorts(pod interface{}, printFunc func(portMapping) string) string {
-	name := resourceName(pod)
-	ns := currentNamespace()
+	name := resItemName(pod)
+	ns := resItemNamespace(pod)
 	var res bytes.Buffer
 	pfl := portforwardProxies[ns+"/"+name]
 	if pfl != nil {
@@ -694,6 +694,9 @@ func valArray(node interface{}, path []interface{}) []interface{} {
 
 func resItemName(ri interface{}) string {
 	return val(ri, []interface{}{"metadata", "name"}, "").(string)
+}
+func resItemNamespace(ri interface{}) string {
+	return val(ri, []interface{}{"metadata", "namespace"}, "").(string)
 }
 
 func val(node interface{}, path []interface{}, notFoundVal string) interface{} {

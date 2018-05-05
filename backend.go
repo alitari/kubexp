@@ -115,14 +115,14 @@ type backendType struct {
 	resItems          map[string][]interface{}
 	watches           map[string]*io.ReadCloser
 	sorter            sorterType
-	restExecutor      func(httpMethod, url, body string) (*http.Response, error)
+	restExecutor      func(httpMethod, url, body string, timout time.Duration) (*http.Response, error)
 	webSocketExecutor func(url string) (string, error)
 	webSocketConnect  func(url string, closeCallback func()) (chan []byte, chan []byte, error)
 }
 
-func newRestyBackend(cfg *configType, context contextType) *backendType {
+func newBackend(cfg *configType, context contextType) *backendType {
 	return &backendType{cfg: cfg, context: context,
-		restExecutor: func(httpMethod, url, body string) (*http.Response, error) {
+		restExecutor: func(httpMethod, url, body string, timeout time.Duration) (*http.Response, error) {
 			tracelog.Printf("rest call: %s %s", httpMethod, url)
 			if body != "" {
 				tracelog.Printf("body: '%s'", body)
@@ -134,6 +134,9 @@ func newRestyBackend(cfg *configType, context contextType) *backendType {
 					},
 					IdleConnTimeout: 3 * time.Second,
 				},
+			}
+			if timeout > 0 {
+				client.Timeout = timeout * time.Second
 			}
 			req, err := http.NewRequest(httpMethod, url, strings.NewReader(body))
 			if err != nil {
@@ -172,16 +175,16 @@ type sorterType interface {
 	getAscending() bool
 }
 
-func (b *backendType) resourceItems(ns string, resource resourceType) []interface{} {
+func (b *backendType) resourceItems(ns string, rt resourceType) []interface{} {
 	var r []interface{}
-	if !resource.Namespace || ns != "" {
-		r = b.resItems[getKey(ns, resource)]
-	} else {
-		for k, v := range b.resItems {
-			if strings.Contains(k, resource.Name) {
-				r = append(r, v...)
+	if rt.Namespace && ns != "*ALL*" {
+		for _, ri := range b.resItems[rt.Name] {
+			if resItemNamespace(ri) == ns {
+				r = append(r, ri)
 			}
 		}
+	} else {
+		r = b.resItems[rt.Name]
 	}
 	b.sorter.setElements(r)
 	sort.Sort(b.sorter)
@@ -189,49 +192,18 @@ func (b *backendType) resourceItems(ns string, resource resourceType) []interfac
 	return ele
 }
 
-func (b *backendType) getNamespaces() ([]string, error) {
-	res := b.cfg.resourcesOfName("namespaces")
-	rc, err := b.restCallAll(res.APIPrefix, res.Name, "")
-	if err != nil {
-		return nil, err
-	}
-	rcUn := unmarshall(rc)
-	list := rcUn["items"].([]interface{})
-	tracelog.Printf("nameSpaceList %s", list)
-	nsList := make([]string, len(list))
-	for i, ns := range list {
-		nsList[i] = val(ns, []interface{}{"metadata", "name"}, "").(string)
-	}
-	return nsList, nil
-}
-
 func (b *backendType) createWatches() error {
 	b.resItems = map[string][]interface{}{}
 	b.watches = map[string]*io.ReadCloser{}
-	nsList, err := b.getNamespaces()
-	if err != nil {
-		return err
-	}
-	tracelog.Printf("namespaces: %s", nsList)
 	for _, res := range cfg.resources {
 		if res.Watch {
-			if !res.Namespace {
-				err = b.watch(res.APIPrefix, res, "")
-				if err != nil {
-					return err
-				}
-			} else {
-				for _, ns := range nsList {
-					err = b.watch(res.APIPrefix, res, ns)
-					if err != nil {
-						return err
-					}
-				}
+			err := b.watch(res.APIPrefix, res.Name)
+			if err != nil {
+				return err
 			}
 		}
 	}
 
-	time.Sleep(1000 * time.Millisecond)
 	return nil
 }
 
@@ -243,22 +215,6 @@ func (b *backendType) closeWatches() {
 			(*v).Close()
 		}
 	}
-}
-
-func (b *backendType) availabiltyCheck() error {
-	_, err := b.restCallAll("api/v1", "nodes", "")
-	return err
-}
-
-func getKey(ns string, resource resourceType) string {
-	if !resource.Namespace {
-		ns = ""
-	}
-	return fmt.Sprintf("%s/%s", ns, resource.Name)
-}
-
-func (b *backendType) getDetail(ns string, resource resourceType, riName string) interface{} {
-	return b.resItemByName(getKey(ns, resource), riName)
 }
 
 func (b *backendType) delete(ns string, resource resourceType, resourceItem string) (interface{}, error) {
@@ -362,55 +318,55 @@ func (b *backendType) handleResponse(httpMethod, url, reqBody string, resp *http
 	}
 }
 
+func (b *backendType) availabiltyCheck() error {
+	url := fmt.Sprintf("%s/%s/%s", b.context.Cluster.URL, "api/v1", "nodes")
+	resp, err := b.restExecutor(http.MethodGet, url, "", 3)
+	_, err = b.handleResponse(http.MethodGet, url, "", resp, err)
+	return err
+}
+
 func (b *backendType) restCallAll(apiPrefix, ress string, body string) (string, error) {
 	url := fmt.Sprintf("%s/%s/%s", b.context.Cluster.URL, apiPrefix, ress)
-	resp, err := b.restExecutor(http.MethodGet, url, body)
+	resp, err := b.restExecutor(http.MethodGet, url, body, -1)
 	return b.handleResponse(http.MethodGet, url, body, resp, err)
 }
 
 func (b *backendType) restCall(httpMethod, apiPrefix, ress, ns string, body string) (string, error) {
 	url := fmt.Sprintf("%s/%s/namespaces/%s/%s", b.context.Cluster.URL, apiPrefix, ns, ress)
-	resp, err := b.restExecutor(httpMethod, url, body)
+	resp, err := b.restExecutor(httpMethod, url, body, -1)
 	return b.handleResponse(httpMethod, url, body, resp, err)
 }
 
 func (b *backendType) restCallNoNs(httpMethod, apiPrefix, ress string, body string) (string, error) {
 	url := fmt.Sprintf("%s/%s/%s", b.context.Cluster.URL, apiPrefix, ress)
-	resp, err := b.restExecutor(httpMethod, url, body)
+	resp, err := b.restExecutor(httpMethod, url, body, -1)
 	return b.handleResponse(httpMethod, url, body, resp, err)
 }
 
 func (b *backendType) restCallBatch(httpMethod, ress string, ns string, body string) (string, error) {
 	url := fmt.Sprintf("%s/apis/batch/v1/namespaces/%s/%s", b.context.Cluster.URL, ns, ress)
-	resp, err := b.restExecutor(httpMethod, url, body)
+	resp, err := b.restExecutor(httpMethod, url, body, -1)
 	return b.handleResponse(httpMethod, url, body, resp, err)
 }
 
-func (b *backendType) watch(apiPrefix string, ress resourceType, ns string) error {
-	k := getKey(ns, ress)
-	if b.watches[k] != nil {
-		return fmt.Errorf("duplicate watch. key: %s ", k)
+func (b *backendType) watch(apiPrefix string, resName string) error {
+	tracelog.Printf("watching resource : %s", resName)
+	if b.watches[resName] != nil {
+		return fmt.Errorf("duplicate watch of resource: %s ", resName)
 	}
-	tracelog.Printf("watching key: %s", k)
-	var url string
-	if ns != "" {
-		url = fmt.Sprintf("%s/%s/watch/namespaces/%s/%s", b.context.Cluster.URL, apiPrefix, ns, ress.Name)
-	} else {
-		url = fmt.Sprintf("%s/%s/watch/%s", b.context.Cluster.URL, apiPrefix, ress.Name)
-	}
-	resp, err := b.restExecutor(http.MethodGet, url, "")
+	url := fmt.Sprintf("%s/%s/watch/%s", b.context.Cluster.URL, apiPrefix, resName)
+	resp, err := b.restExecutor(http.MethodGet, url, "", -1)
 	if err != nil {
-		errorlog.Printf("Return watch with error %v", err)
+		errorlog.Printf("error watching resource %s : %v", resName, err)
 		return err
 	}
 	body := &resp.Body
 	go func() {
 		reader := bufio.NewReader(*body)
 		for {
-			//b := make([]byte, 0x10000)
 			watchBytes, err := reader.ReadBytes('\n')
 			if err != nil {
-				if err.Error() == "EOF" || err.Error() == "use of closed network connection" {
+				if err.Error() == "EOF" || strings.Contains(err.Error(), "use of closed network connection") {
 					tracelog.Printf("Close watch url %s:\n reason: %v", url, err)
 				} else {
 					mess := fmt.Sprintf("Watch error url %s:\n error: %v", url, err)
@@ -419,23 +375,16 @@ func (b *backendType) watch(apiPrefix string, ress resourceType, ns string) erro
 				}
 				break
 			} else {
-				b.updateResourceItems(k, watchBytes)
-				if len(resourceMenu.widget.items) > 0 && len(namespaceList.widget.items) > 0 {
-					selRes := currentResource()
-					selNs := currentNamespace()
-					if selNs == ns && selRes.Name == ress.Name && currentState.name == "browseState" {
-						updateResource()
-					}
-				}
+				b.updateResourceItems(resName, watchBytes)
 			}
 		}
 	}()
-	b.watches[k] = body
+	b.watches[resName] = body
 	return nil
 }
 
-func (b *backendType) indexOfResItemByName(k, name string) int {
-	items := b.resItems[k]
+func (b *backendType) indexOfResItemByName(resName, name string) int {
+	items := b.resItems[resName]
 	for i, item := range items {
 		if resItemName(item) == name {
 			return i
@@ -444,61 +393,62 @@ func (b *backendType) indexOfResItemByName(k, name string) int {
 	return -1
 }
 
-func (b *backendType) resItemByName(k, name string) interface{} {
-	items := b.resItems[k]
-	for _, item := range items {
-		if resItemName(item) == name {
-			return item
-		}
-	}
-	return nil
-}
-
-func (b *backendType) updateResourceItems(k string, watchBytes []byte) {
+func (b *backendType) updateResourceItems(resName string, watchBytes []byte) {
 	watch := unmarshallBytes(watchBytes)
 	watchObj := watch["object"].(map[string]interface{})
 	switch watch["type"] {
 	case "MODIFIED":
-		b.updateResourceItem(k, watchObj)
+		b.updateResourceItem(resName, watchObj)
 	case "ADDED":
-		b.addResourceItem(k, watchObj)
+		b.addResourceItem(resName, watchObj)
 	case "DELETED":
-		b.deleteResourceItem(k, watchObj)
+		b.deleteResourceItem(resName, watchObj)
 	default:
-		errorlog.Printf("unknown watch type , k: %s, watch: %s", k, watch)
+		errorlog.Printf("unknown watch type , resource: %s, watch: %s", resName, watch)
+	}
+	if resName == "namespaces" {
+		updateNamespaces()
 	}
 
-	//tracelog.Printf("resource items count k: %s , count: %d ", k, len(b.resItems[k]))
+	if len(resourceMenu.widget.items) > 0 && len(namespaceList.widget.items) > 0 {
+		selRes := selectedResource()
+		selNs := selectedNamespace()
+		if selNs == resItemNamespace(watchObj) && selRes.Name == resName && currentState.name == "browseState" {
+			updateResource()
+		}
+	}
+
+	tracelog.Printf("count of %s:  : %d ", resName, len(b.resItems[resName]))
 }
 
-func (b *backendType) updateResourceItem(k string, ri map[string]interface{}) {
+func (b *backendType) updateResourceItem(resName string, ri map[string]interface{}) {
 	name := resItemName(ri)
-	//tracelog.Printf("update ri: (%s, %s)", k, name)
-	i := b.indexOfResItemByName(k, name)
+	tracelog.Printf("update ri: (%s, %s)", resName, name)
+	i := b.indexOfResItemByName(resName, name)
 	if i > -1 {
-		items := b.resItems[k]
+		items := b.resItems[resName]
 		items[i] = ri
 	} else {
-		warninglog.Printf("update: ri not found k: %s , name: %s", k, name)
+		warninglog.Printf("update: ri  (%s/%s) not found", resName, name)
 	}
 }
 
-func (b *backendType) addResourceItem(k string, ri map[string]interface{}) {
-	//name := resItemName(ri)
-	//tracelog.Printf("add ri: (%s, %s)", k, name)
-	items := b.resItems[k]
-	b.resItems[k] = append(items, ri)
+func (b *backendType) addResourceItem(resName string, ri map[string]interface{}) {
+	name := resItemName(ri)
+	tracelog.Printf("add ri: (%s, %s)", resName, name)
+	items := b.resItems[resName]
+	b.resItems[resName] = append(items, ri)
 }
 
-func (b *backendType) deleteResourceItem(k string, ri map[string]interface{}) {
+func (b *backendType) deleteResourceItem(resName string, ri map[string]interface{}) {
 	name := resItemName(ri)
-	tracelog.Printf("delete ri: (%s, %s)", k, name)
-	i := b.indexOfResItemByName(k, name)
+	tracelog.Printf("delete ri (%s/%s)", resName, name)
+	i := b.indexOfResItemByName(resName, name)
 	if i > -1 {
-		items := b.resItems[k]
-		b.resItems[k] = append(items[:i], items[i+1:]...)
+		items := b.resItems[resName]
+		b.resItems[resName] = append(items[:i], items[i+1:]...)
 	} else {
-		warninglog.Printf("delete: ri not found k: %s , name: %s", k, name)
+		warninglog.Printf("delete: ri (%s/%s) not found ", resName, name)
 	}
 }
 

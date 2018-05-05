@@ -24,7 +24,7 @@ type keyBindingType struct {
 
 func newScaleCommand(name string, replicas int) commandType {
 	var scaleCommand = commandType{Name: name, f: func(g *gocui.Gui, v *gocui.View) error {
-		res := currentResource()
+		res := selectedResource()
 		if res.Name == "deployments" || res.Name == "replicationcontrollers" || res.Name == "replicasets" || res.Name == "daemonsets" || res.Name == "statefulsets" {
 			scaleResource(replicas)
 		}
@@ -35,12 +35,12 @@ func newScaleCommand(name string, replicas int) commandType {
 
 func newExecCommand(name, cmd string, containerNr int) commandType {
 	var execCommand = commandType{Name: name, f: func(g *gocui.Gui, v *gocui.View) error {
-		res := currentResource()
+		res := selectedResource()
 		if res.Name != "pods" {
 			return nil
 		}
-		ns := currentNamespace()
-		rname := currentResourceItemName()
+		ns := selectedResourceItemNamespace()
+		rname := selectedResourceItemName()
 
 		pod := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
 		containers := val(pod, []interface{}{"spec", "containers"}, "")
@@ -66,14 +66,14 @@ func newExecCommand(name, cmd string, containerNr int) commandType {
 func newPortForwardCommand(name string, useSamePort bool) commandType {
 
 	var portForwardCommand = commandType{Name: name, f: func(g *gocui.Gui, v *gocui.View) error {
-		res := currentResource()
+		res := selectedResource()
 		if res.Name != "pods" {
 			return nil
 		}
-		podName := currentResourceItemName()
-		ns := currentNamespace()
+		podName := selectedResourceItemName()
+		ns := selectedResourceItemNamespace()
 		if portforwardProxies[ns+"/"+podName] != nil {
-			err := removePortforwardProxyofPod(podName)
+			err := removePortforwardProxyofPod(ns, podName)
 			if err != nil {
 				showError("Can't remove port-forward proxy", err)
 				return nil
@@ -91,7 +91,7 @@ func newPortForwardCommand(name string, useSamePort bool) commandType {
 				localPort = currentPortforwardPort
 				currentPortforwardPort++
 			}
-			err := createPortforwardProxy(podName, portMapping{localPort, cp})
+			err := createPortforwardProxy(ns, podName, portMapping{localPort, cp})
 			if err != nil {
 				showError("Can't create port-forward proxy", err)
 				return nil
@@ -123,7 +123,7 @@ var previousResourceCommand = commandType{Name: "Previous resource", f: func(g *
 
 func newConfirmCommand(name string, command commandType) commandType {
 	var confirmCommand = commandType{Name: name, f: func(g *gocui.Gui, v *gocui.View) error {
-		showConfirm(fmt.Sprintf("Delete %s from %s ?", currentResourceItemName(), currentResource().Name), command)
+		showConfirm(fmt.Sprintf("Delete %s from %s ?", selectedResourceItemName(), selectedResource().Name), command)
 		return nil
 	}}
 	return confirmCommand
