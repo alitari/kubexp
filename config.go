@@ -836,7 +836,9 @@ func (c *configType) createContexts() *configType {
 	if err != nil {
 		fatalStderrlog.Fatalf("Can't read file %s: %v", c.configFile, err.Error())
 	}
-	tracelog.Printf("reading clusters config from %s ...", c.configFile)
+	mess := fmt.Sprintf("reading clusters config from %s ...", c.configFile)
+	fmt.Println(mess)
+	tracelog.Print(mess)
 
 	var cfg map[string]interface{}
 	err = yaml.Unmarshal(clustersData, &cfg)
@@ -857,9 +859,13 @@ func (c *configType) createContexts() *configType {
 			ct := contextType{Name: cmap["name"].(string), Cluster: cluster, user: user, color: contextColors[colorIndex]}
 			if c.isAvailable(ct) {
 				cs = append(cs, ct)
-				tracelog.Printf("created context no %d with name '%s' ", i+1, ct.Name)
+				mess := fmt.Sprintf("created context no %d with name '%s' ", i+1, ct.Name)
+				fmt.Println(mess)
+				tracelog.Print(mess)
 			} else {
-				warninglog.Printf("skipping context %d with name '%s' because cluster is not available.  ", i+1, ct.Name)
+				mess := fmt.Sprintf("skipping context %d with name '%s' because cluster is not available.  ", i+1, ct.Name)
+				fmt.Println(mess)
+				warninglog.Print(mess)
 			}
 		}
 	}
