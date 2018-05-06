@@ -87,6 +87,14 @@ bin/kubexp
 go test main/..
 ```
 
+### running with docker
+
+To run the kubexp container you need to mount the config file. Note, that when kubexp runs in a container the port-forward feature will not work.
+
+```bash
+docker run -it -v ~/.kube/config:/root/.kube/config alitari/kubexp:latest
+```
+
 ## Credits
 
 - [GOCUI](https://github.com/jroimartin/gocui) go framework for console user interfaces
