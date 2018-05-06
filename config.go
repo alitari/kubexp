@@ -416,6 +416,28 @@ No Data
 			yamlView,
 			jsonView,
 		}},
+	{Name: "cronjobs", APIPrefix: "apis/batch/v1beta1", ShortName: "cronjobs", Category: "workloads", Namespace: true, Watch: true,
+		Views: []viewType{
+			{
+				Name: "list",
+				Template: `{{- header "Status" . ( status .spec.jobTemplate.spec.completions .status.succeeded ) | printf "%-9.9s " | colorPhase -}}
+	{{- header "Name" . .metadata.name | printf "%-50.50s " -}}
+	{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
+	{{- header "Schedule" . .spec.schedule | printf "%-20.20s " -}}
+	{{- header "Last Scheduled" . .status.lastScheduleTime | printf "%-26.26s " -}}
+	{{- header "Container" . (( ind .spec.jobTemplate.spec.template.spec.containers 0).name) | printf "%-20.20s " -}}
+	{{- header "Image" . (( ind .spec.jobTemplate.spec.template.spec.containers 0).image) | printf "%-20.20s " -}}`,
+			},
+			viewType{
+				Name: "info",
+				Template: labelsAndAnnoTemplate + `
+	
+	` + eventsTemplate(),
+			},
+
+			yamlView,
+			jsonView,
+		}},
 	{Name: "replicationcontrollers", APIPrefix: "api/v1", ShortName: "rc", Category: "workloads", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
