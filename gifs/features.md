@@ -1,8 +1,8 @@
 # kubexp features
 
-## browse
+- optimized for fast resource browsing
 
-![browse](./browse.gif)
+- automatic update view when cluster changes
 
 ## switch cluster
 
