@@ -418,12 +418,12 @@ func (b *backendType) updateResourceItems(resName string, watchBytes []byte) {
 		}
 	}
 
-	tracelog.Printf("count of %s:  : %d ", resName, len(b.resItems[resName]))
+	//tracelog.Printf("count of %s:  : %d ", resName, len(b.resItems[resName]))
 }
 
 func (b *backendType) updateResourceItem(resName string, ri map[string]interface{}) {
 	name := resItemName(ri)
-	tracelog.Printf("update ri: (%s, %s)", resName, name)
+	// tracelog.Printf("update ri: (%s, %s)", resName, name)
 	i := b.indexOfResItemByName(resName, name)
 	if i > -1 {
 		items := b.resItems[resName]
@@ -434,8 +434,8 @@ func (b *backendType) updateResourceItem(resName string, ri map[string]interface
 }
 
 func (b *backendType) addResourceItem(resName string, ri map[string]interface{}) {
-	name := resItemName(ri)
-	tracelog.Printf("add ri: (%s, %s)", resName, name)
+	// name := resItemName(ri)
+	// tracelog.Printf("add ri: (%s, %s)", resName, name)
 	items := b.resItems[resName]
 	b.resItems[resName] = append(items, ri)
 }
