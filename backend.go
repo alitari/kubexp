@@ -395,27 +395,32 @@ func (b *backendType) indexOfResItemByName(resName, name string) int {
 
 func (b *backendType) updateResourceItems(resName string, watchBytes []byte) {
 	watch := unmarshallBytes(watchBytes)
-	watchObj := watch["object"].(map[string]interface{})
-	switch watch["type"] {
-	case "MODIFIED":
-		b.updateResourceItem(resName, watchObj)
-	case "ADDED":
-		b.addResourceItem(resName, watchObj)
-	case "DELETED":
-		b.deleteResourceItem(resName, watchObj)
-	default:
-		errorlog.Printf("unknown watch type , resource: %s, watch: %s", resName, watch)
-	}
-	if resName == "namespaces" {
-		updateNamespaces()
-	}
-
-	if len(resourceMenu.widget.items) > 0 && len(namespaceList.widget.items) > 0 {
-		selRes := selectedResource()
-		selNs := selectedNamespace()
-		if selNs == resItemNamespace(watchObj) && selRes.Name == resName && currentState.name == "browseState" {
-			updateResource()
+	if watch["object"] != nil {
+		watchObj := watch["object"].(map[string]interface{})
+		switch watch["type"] {
+		case "MODIFIED":
+			b.updateResourceItem(resName, watchObj)
+		case "ADDED":
+			b.addResourceItem(resName, watchObj)
+		case "DELETED":
+			b.deleteResourceItem(resName, watchObj)
+		default:
+			errorlog.Printf("unknown watch type , resource: %s, watch: %s", resName, watch)
 		}
+		if resName == "namespaces" {
+			updateNamespaces()
+		}
+
+		if len(resourceMenu.widget.items) > 0 && len(namespaceList.widget.items) > 0 {
+			selRes := selectedResource()
+			selNs := selectedNamespace()
+
+			if currentState.name == "browseState" && selRes.Name == resName && (selNs == "*ALL*" || selNs == resItemNamespace(watchObj)) {
+				updateResource()
+			}
+		}
+	} else {
+		errorlog.Printf("unknown watch obj: %v", watch)
 	}
 
 	//tracelog.Printf("count of %s:  : %d ", resName, len(b.resItems[resName]))
