@@ -1,7 +1,16 @@
 package kubexp
 
 import (
+	"flag"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sync"
 	"time"
+
+	"github.com/jroimartin/gocui"
 )
 
 /* local variables naming conventions:
@@ -22,15 +31,6 @@ context:
 selected: sel
 
 */
-import (
-	"flag"
-	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-
-	"github.com/jroimartin/gocui"
-)
 
 type resourceCategoryType struct {
 	name      string
@@ -239,11 +239,17 @@ var g *gocui.Gui
 var logLevel *string
 var logFilePath *string
 
+var wg sync.WaitGroup
+var leaveApp = false
+var exe = make(chan *exec.Cmd)
+
+var keyBindings = []keyBindingType{}
+
 // Run entrypoint of the program
 func Run() {
 	parseFlags()
 	currentPortforwardPort = portforwardStartPort
-	var err error
+
 	if len(*logFilePath) != 0 {
 		logFile, err := os.OpenFile(*logFilePath, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		defer logFile.Close()
@@ -263,24 +269,62 @@ func Run() {
 	backend = newBackend(cfg, cfg.contexts[0])
 	updateKubectlContext()
 
+	go commandRunner()
+	currentState = initState
+
+	for {
+		wg.Add(1)
+		initGui()
+
+		if leaveApp {
+			g.Close()
+			break
+		}
+		wg.Wait()
+	}
+
+}
+
+func commandRunner() {
+	for {
+		select {
+		case cmd := <-exe:
+			unbindKeys()
+			g.Close()
+
+			cmd.Stdin = os.Stdin
+			cmd.Stderr = os.Stderr
+			cmd.Stdout = os.Stdout
+			cmd.Run()
+			wg.Done()
+		}
+	}
+}
+
+func initGui() {
+	var err error
 	g, err = gocui.NewGui(gocui.OutputNormal)
 	if err != nil {
 		errorlog.Panicln(err)
 	}
-	defer g.Close()
+	if currentState.name != browseState.name {
+		createWidgets()
+	}
+	g.SetManager(clusterList.widget, clusterResourcesWidget, namespaceList.widget, resourceMenu.widget, resourcesItemDetailsMenu.widget, searchmodeWidget, resourceItemsList.widget, resourceItemDetailsWidget, helpWidget, errorWidget, execWidget, confirmWidget, loadingWidget)
 
-	createWidgets()
 	bindKeys()
-	currentState = initState
-	setState(browseState)
-	if cfg.isNew {
-		setState(helpState)
+	if currentState.name != browseState.name {
+		setState(browseState)
+		if cfg.isNew {
+			setState(helpState)
+		}
+	} else {
+		newResourceCategory()
 	}
 
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
-		errorlog.Panicln(err)
+		errorlog.Printf("error in mail loop: %v", err)
 	}
-
 }
 
 func parseFlags() {
@@ -396,8 +440,6 @@ func createWidgets() {
 	confirmWidget = newTextWidget("confirm", "Confirm", false, false, 20, 7, maxX-40, 4)
 
 	loadingWidget = newTextWidget("loading", "", false, false, 30, 10, maxX-60, 4)
-
-	g.SetManager(clusterList.widget, clusterResourcesWidget, namespaceList.widget, resourceMenu.widget, resourcesItemDetailsMenu.widget, searchmodeWidget, resourceItemsList.widget, resourceItemDetailsWidget, helpWidget, errorWidget, execWidget, confirmWidget, loadingWidget)
 
 }
 
@@ -687,6 +729,15 @@ func removePortforwardProxy(key string) error {
 	}
 	delete(portforwardProxies, key)
 	return nil
+}
+
+func unbindKeys() {
+	for _, kb := range keyBindings {
+		if err := g.DeleteKeybinding(kb.KeyEvent.Viewname, kb.KeyEvent.Key, kb.KeyEvent.mod); err != nil {
+			errorlog.Panicln(err)
+		}
+	}
+	keyBindings = []keyBindingType{}
 }
 
 func bindKeys() {

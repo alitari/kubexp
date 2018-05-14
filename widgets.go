@@ -7,9 +7,12 @@ package kubexp
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
+	"syscall"
 	"text/template"
 
 	"github.com/jroimartin/gocui"
@@ -72,7 +75,8 @@ type shellWidget struct {
 	name, title            string
 	x, y                   int
 	w, h                   int
-	inputChan              chan []byte
+	g                      *gocui.Gui
+	stdin                  io.WriteCloser
 }
 
 func newShellWidget(name, title string, x, y, w, h int) *shellWidget {
@@ -80,57 +84,73 @@ func newShellWidget(name, title string, x, y, w, h int) *shellWidget {
 	return exeW
 }
 
-func (w *shellWidget) open(g *gocui.Gui, inputChan, outputChan chan []byte) {
-	w.inputChan = inputChan
+func (w *shellWidget) close() {
+}
+
+func (w *shellWidget) Write(p []byte) (n int, err error) {
+	str := string(p)
+	tracelog.Printf("received '%s'(%v)", str, p)
+
+	g.Update(func(gui *gocui.Gui) error {
+		str = strings.Replace(str, "\r", "", -1)
+		v, err := gui.View(w.name)
+		if err != nil {
+			return nil
+		}
+		if str == string([]byte{8, 27, 91, 74}) || str == string([]byte{8, 27, 91, 75}) {
+			v.EditDelete(true)
+		} else if strings.HasSuffix(str, string([]byte{27, 91, 74})) {
+			ll := lastLine(v)
+			for i := 0; i < len(ll); i++ {
+				v.EditDelete(true)
+			}
+			_, err = fmt.Fprint(v, str[:len(str)-3])
+			panicWhenError("print", err)
+		} else {
+			_, err = fmt.Fprint(v, str)
+			panicWhenError("print", err)
+		}
+		buf := v.Buffer()
+		cy := max(0, strings.Count(buf, "\n")-1)
+		sx, sy := v.Size()
+		oy := max(0, cy-sy+1)
+		ll := lastLine(v)
+		cx := len(ll)
+		err = v.SetOrigin(0, oy)
+		panicWhenError("setOrigin", err)
+		curx := min(cx, sx-1)
+		cury := min(cy, sy-1)
+		err = v.SetCursor(curx, cury)
+		panicWhenError("setCursor", err)
+		return nil
+	})
+	return len(p), nil
+}
+
+func (w *shellWidget) open(g *gocui.Gui, cmd *exec.Cmd, closeCallback func()) error {
 	w.active = true
 	g.Cursor = true
 
-	go func() {
-		for w.visible && w.active {
-			select {
-			case ba := <-outputChan:
-				g.Update(func(gui *gocui.Gui) error {
-					str := strings.Replace(string(ba), "\r", "", -1)
-					v, err := gui.View(w.name)
-					if err != nil {
-						return nil
-					}
-					tracelog.Printf("received: %x", str)
-					if str == string([]byte{8, 27, 91, 74}) || str == string([]byte{8, 27, 91, 75}) {
-						v.EditDelete(true)
-					} else if strings.HasSuffix(str, string([]byte{27, 91, 74})) {
-						ll := lastLine(v)
-						for i := 0; i < len(ll); i++ {
-							v.EditDelete(true)
-						}
-						_, err = fmt.Fprint(v, str[:len(str)-3])
-						panicWhenError("print", err)
-					} else {
-						_, err = fmt.Fprint(v, str)
-						panicWhenError("print", err)
-					}
-					buf := v.Buffer()
-					cy := max(0, strings.Count(buf, "\n")-1)
-					tracelog.Printf("out<-:%s [%v] ", str, []byte(str))
-					sx, sy := v.Size()
-					oy := max(0, cy-sy+1)
-					ll := lastLine(v)
-					cx := len(ll)
-					err = v.SetOrigin(0, oy)
-					panicWhenError("setOrigin", err)
-					curx := min(cx, sx-1)
-					cury := min(cy, sy-1)
-					err = v.SetCursor(curx, cury)
-					panicWhenError("setCursor", err)
-					return nil
-				})
-			}
-		}
-	}()
+	var err error
+	cmd.Stdin = os.NewFile(uintptr(syscall.Stdin), "/dev/stdin")
+	if err != nil {
+		return err
+	}
 
+	cmd.Stdout = w
+
+	cmd.Stderr = cmd.Stdout
+
+	go func() {
+		tracelog.Printf("executing command %v", cmd)
+		cmd.Run()
+		closeCallback()
+	}()
+	return nil
 }
 
 func (w *shellWidget) editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Modifier) {
+	tracelog.Printf("editor key event rune:'%v'", ch)
 	switch {
 	case ch != 0 && mod == 0:
 		w.sendRune(ch)
@@ -139,7 +159,7 @@ func (w *shellWidget) editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Mo
 	case key == gocui.KeySpace:
 		w.sendRune(' ')
 	case key == gocui.KeyBackspace || key == gocui.KeyBackspace2:
-		w.sendRune('\x08')
+		w.sendRune(ch)
 	case key == gocui.KeyDelete:
 		w.sendRune('\x7f')
 	case key == gocui.KeyArrowLeft:
@@ -154,6 +174,7 @@ func (w *shellWidget) editor(v *gocui.View, key gocui.Key, ch rune, mod gocui.Mo
 		w.sendRune('\x1b')
 		w.sendRune('[')
 		w.sendRune('B')
+		v.MoveCursor(0, 1, false)
 	case key == gocui.KeyArrowRight:
 		v.MoveCursor(1, 0, false)
 	}
@@ -182,11 +203,12 @@ func (w *shellWidget) Layout(g *gocui.Gui) error {
 }
 
 func (w *shellWidget) sendRune(r rune) {
-	tracelog.Printf("send Rune:'%v'", r)
-	channel := []byte{0x0}
-	rb := []byte(string(r))
-	m := append(channel[:], rb[:]...)
-	w.inputChan <- m
+	// tracelog.Printf("send Rune:'%s(%v)'", string(r), r)
+	// channel := []byte{0x0}
+	// rb := []byte(string(r))
+	// m := append(channel[:], rb[:]...)
+	// w.stdin.Write(m)
+	// w.stdin.Sync()
 }
 
 // func (w *execWidget) sendCmd(s string) {

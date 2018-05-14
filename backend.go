@@ -280,17 +280,6 @@ func (b *backendType) execPodCommand(namespace, podName, containerName, command 
 	return rp, nil
 }
 
-func (b *backendType) execIntoPod(namespace, podName, cmd, container string, closeCallback func()) (chan []byte, chan []byte, error) {
-	stderr := "true"
-	stdin := "true"
-	stdout := "true"
-	tty := "true"
-	// command := "bin/sh"
-	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/exec?command=%s&container=%s&stderr=%s&stdin=%s&stdout=%s&tty=%s", namespace, podName, cmd, container, stderr, stdin, stdout, tty)
-	url := fmt.Sprintf("%s://%s:%s%s", "wss", b.context.Cluster.URL.Hostname(), b.context.Cluster.URL.Port(), path)
-	return b.webSocketConnect(url, closeCallback)
-}
-
 func (b *backendType) handleResponse(httpMethod, url, reqBody string, resp *http.Response, err error) (string, error) {
 	if err != nil {
 		mes := fmt.Sprintf("\nError: %v", err)
