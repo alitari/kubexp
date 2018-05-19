@@ -373,24 +373,6 @@ No Data
 				Name:     "logs",
 				Template: `{{- podLog .metadata.name ( ind .spec.containers 0).name -}}`,
 			},
-			{
-				Name: "exec",
-				Template: `
-Environment:
---------------
-{{ podExec .metadata.name ( ind .spec.containers 0).name "env" }}
-Disk usage mounted volumes:
---------------
-{{- $p := .}}
-{{- range $key, $value := ( ind .spec.containers 0).volumeMounts}}
-{{ $value.name }}: 
-{{ $command := ( $value.mountPath | printf "df -h %s" ) -}}
-{{- podExec $p.metadata.name ( ind $p.spec.containers 0).name $command }}
-{{else}}
-No Data 
-{{end}}
-           `,
-			},
 		}},
 	{Name: "jobs", APIPrefix: "apis/batch/v1", ShortName: "jobs", Category: "workloads", Namespace: true, Watch: true,
 		Views: []viewType{

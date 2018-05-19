@@ -2,6 +2,7 @@ package kubexp
 
 import (
 	"fmt"
+	"os/exec"
 
 	"github.com/jroimartin/gocui"
 )
@@ -41,24 +42,28 @@ func newExecCommand(name, cmd string, containerNr int) commandType {
 		}
 		ns := selectedResourceItemNamespace()
 		rname := selectedResourceItemName()
+		cmd := exec.Command("kubectl", "-n", ns, "exec", "-it", rname, cmd)
 
-		pod := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
-		containers := val(pod, []interface{}{"spec", "containers"}, "")
-		containerNames := toStringArray(containers, "name")
-		if containerNr < len(containerNames) {
-			in, out, err := backend.execIntoPod(ns, rname, cmd, containerNames[containerNr], func() {
-				g.Cursor = false
-				setState(browseState)
-			})
-			if err != nil {
-				showError("Can't exec into pod", err)
-				return nil
-			}
-			setState(execPodState)
-			execWidget.title = fmt.Sprintf("exec container '%s' in pod '%s'", containerNames[containerNr], rname)
-			execWidget.open(g, in, out)
-		}
-		return nil
+		exe <- cmd
+		return gocui.ErrQuit
+
+		// pod := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
+		// containers := val(pod, []interface{}{"spec", "containers"}, "")
+		// containerNames := toStringArray(containers, "name")
+		// if containerNr < len(containerNames) {
+		// 	setState(execPodState)
+		// 	execWidget.title = fmt.Sprintf("exec container '%s' in pod '%s'", containerNames[containerNr], rname)
+		// 	cmd := exec.Command("kubectl", "-n", ns, "exec", "-it", rname, "bash")
+		// 	err := execWidget.open(g, cmd, func() {
+		// 		g.Cursor = false
+		// 		setState(browseState)
+		// 		execWidget.close()
+		// 	})
+		// 	if err != nil {
+		// 		showError("Can't exec into pod", err)
+		// 		return nil
+		// 	}
+		// }
 	}}
 	return execCommand
 }
@@ -107,6 +112,7 @@ var portForwardCommand = newPortForwardCommand("toggle port forward", false)
 
 var quitCommand = commandType{Name: "Quit", f: func(g *gocui.Gui, v *gocui.View) error {
 	removeAllPortforwardProxies()
+	leaveApp = true
 	return gocui.ErrQuit
 }}
 
@@ -353,8 +359,6 @@ var quitWidgetCommand = commandType{Name: "quit", f: func(g *gocui.Gui, v *gocui
 	setState(browseState)
 	return nil
 }}
-
-var keyBindings = []keyBindingType{}
 
 func bindKey(g *gocui.Gui, keyBind keyEventType, command commandType) {
 	if err := g.SetKeybinding(keyBind.Viewname, keyBind.Key, keyBind.mod, command.f); err != nil {
