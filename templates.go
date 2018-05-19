@@ -53,7 +53,6 @@ var templateFuncMap = template.FuncMap{
 	"ctx":                   contextName,
 	"decode64":              decode64,
 	"podLog":                podLog,
-	"podExec":               podExec,
 	"events":                eventsFor,
 	"podRes":                podRes,
 	"nodeRes":               nodeRes,
@@ -125,14 +124,6 @@ func decode64(it interface{}) string {
 func podLog(podName, containerName string) interface{} {
 	logs, _ := backend.readPodLogs(selectedResourceItemNamespace(), podName, containerName)
 	return logs
-}
-
-func podExec(podName, containerName, command string) interface{} {
-	resp, err := backend.execPodCommand(selectedResourceItemNamespace(), podName, containerName, command)
-	if err != nil {
-		return fmt.Sprintf("error=%v", err)
-	}
-	return resp
 }
 
 func podsForNode(nodeName string) interface{} {

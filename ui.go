@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -468,7 +469,7 @@ func filterResources(res []resourceType) []interface{} {
 }
 
 func showError(mess string, err error) {
-
+	mess = strings.Join([]string{mess, fmt.Sprintf(".See log file '%s'", *logFilePath)}, "")
 	g.Update(func(gui *gocui.Gui) error {
 		co := []interface{}{mess, err}
 		errorWidget.setContent(co, tpl("error", errorTemplate))

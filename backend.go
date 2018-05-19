@@ -2,7 +2,6 @@ package kubexp
 
 import (
 	"bufio"
-	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -110,14 +109,12 @@ func (s *timeSorterType) Less(i, j int) bool {
 }
 
 type backendType struct {
-	cfg               *configType
-	context           contextType
-	resItems          map[string][]interface{}
-	watches           map[string]*io.ReadCloser
-	sorter            sorterType
-	restExecutor      func(httpMethod, url, body string, timout time.Duration) (*http.Response, error)
-	webSocketExecutor func(url string) (string, error)
-	webSocketConnect  func(url string, closeCallback func()) (chan []byte, chan []byte, error)
+	cfg          *configType
+	context      contextType
+	resItems     map[string][]interface{}
+	watches      map[string]*io.ReadCloser
+	sorter       sorterType
+	restExecutor func(httpMethod, url, body string, timout time.Duration) (*http.Response, error)
 }
 
 func newBackend(cfg *configType, context contextType) *backendType {
@@ -154,12 +151,6 @@ func newBackend(cfg *configType, context contextType) *backendType {
 			return response, err
 		},
 
-		webSocketExecutor: func(url string) (string, error) {
-			return websocketExecutor(url, context.user.token)
-		},
-		webSocketConnect: func(url string, closeCallback func()) (chan []byte, chan []byte, error) {
-			return websocketConnect(url, context.user.token, closeCallback)
-		},
 		sorter: &nameSorterType{ascending: true},
 	}
 }
@@ -262,27 +253,9 @@ func (b *backendType) scale(ns string, resource resourceType, deploymentName str
 	return r, nil
 }
 
-func (b *backendType) execPodCommand(namespace, podName, containerName, command string) (interface{}, error) {
-	var queryCommands bytes.Buffer
-	for _, qc := range strings.Split(command, " ") {
-		queryCommands.WriteString(fmt.Sprintf("command=%s&", qc))
-	}
-	stderr := "true"
-	stdin := "true"
-	stdout := "true"
-	tty := "false"
-	path := fmt.Sprintf("/api/v1/namespaces/%s/pods/%s/exec?container=%s&%sstderr=%s&stdin=%s&stdout=%s&tty=%s", namespace, podName, containerName, queryCommands.String(), stderr, stdin, stdout, tty)
-	url := fmt.Sprintf("%s://%s:%s%s", "wss", b.context.Cluster.URL.Hostname(), b.context.Cluster.URL.Port(), path)
-	rp, err := b.webSocketExecutor(url)
-	if err != nil {
-		return rp, err
-	}
-	return rp, nil
-}
-
 func (b *backendType) handleResponse(httpMethod, url, reqBody string, resp *http.Response, err error) (string, error) {
 	if err != nil {
-		mes := fmt.Sprintf("\nError: %v", err)
+		mes := fmt.Sprintf("\nError calling '%s %s %s',  error: %s", httpMethod, url, reqBody, err)
 		errorlog.Print(mes)
 		return mes, err
 	}
