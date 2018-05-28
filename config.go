@@ -266,7 +266,7 @@ var defaultResources = []resourceType{
 				Name: "list",
 				Template: `{{- header "Name" . .metadata.name | printf "%-50.50s " -}}
 {{- header "Cluster IP" . .spec.clusterIP | printf "%-20.20s " -}}
-{{- header "External IP" . .spec.externalIP | printf "%-20.20s " -}}
+{{- header "External IP" . (printArray .spec.externalIPs) | printf "%-20.20s " -}}
 {{- header "Ports" . (fc .spec.ports "port") | printf "%-15.15s " -}}
 {{- header "TargetPorts" . (fc .spec.ports "targetPort") | printf "%-15.15s " -}}
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
