@@ -35,6 +35,14 @@ func tpl(tplName, tplStr string) *template.Template {
 	return templateCache[tplName]
 }
 
+func tplNoFunc(tplName, tplStr string) *template.Template {
+	if templateCache[tplName] == nil {
+		tpl := template.Must(template.New(tplName).Parse(tplStr))
+		templateCache[tplName] = tpl
+	}
+	return templateCache[tplName]
+}
+
 var templateFuncMap = template.FuncMap{
 	"printMap":              printMap,
 	"header":                header,
@@ -44,7 +52,6 @@ var templateFuncMap = template.FuncMap{
 	"age":                   age,
 	"fc":                    fromChildren,
 	"printArray":            printArray,
-	"mergeArrays":           mergeArrays,
 	"ind":                   index,
 	"count":                 count,
 	"keys":                  keys,
@@ -129,12 +136,7 @@ func podLog(podName, containerName string) interface{} {
 func podsForNode(nodeName string) interface{} {
 	podType := cfg.resourcesOfName("pods")
 	pods := backend.resourceItems("", podType)
-
-	result := filterArray(pods, func(item interface{}) bool {
-		podnn := val(item, []interface{}{"spec", "nodeName"}, "").(string)
-		return nodeName == podnn
-	})
-
+	result := filterArrayOnTpl(pods, "{{ spec.nodeName }}", nodeName)
 	tracelog.Printf("found %v pods ", len(result.([]interface{})))
 	return result
 }
@@ -142,13 +144,7 @@ func podsForNode(nodeName string) interface{} {
 func eventsFor(resourceType, name string) interface{} {
 	eventType := cfg.resourcesOfName("events")
 	evs := backend.resourceItems(selectedResourceItemNamespace(), eventType)
-
-	result := filterArray(evs, func(item interface{}) bool {
-		ino := item.(map[string]interface{})["involvedObject"]
-		ki := ino.(map[string]interface{})["kind"].(string)
-		na := ino.(map[string]interface{})["name"].(string)
-		return ki == resourceType && na == name
-	})
+	result := filterArrayOnTpl(evs, "{{ .involvedObject.kind }},{{ .involvedObject.name }}", fmt.Sprintf("%s,%s", resourceType, name))
 	return result
 }
 
@@ -227,12 +223,12 @@ func nodeRes(node interface{}) interface{} {
 }
 
 func resourcesOfNode(node interface{}) (NodeResourcesDef, NodeResourcesDef) {
-	capaCPU := val(node, []interface{}{"status", "capacity", "cpu"}, "0m").(string)
-	capaMem := val(node, []interface{}{"status", "capacity", "memory"}, "0Ki").(string)
-	capaPod := val(node, []interface{}{"status", "capacity", "pods"}, "0").(string)
-	alloCPU := val(node, []interface{}{"status", "allocatable", "cpu"}, "0m").(string)
-	alloMem := val(node, []interface{}{"status", "allocatable", "memory"}, "0Ki").(string)
-	alloPod := val(node, []interface{}{"status", "allocatable", "pods"}, "0").(string)
+	capaCPU := val1(node, "{{ .status.capacity.cpu }}")
+	capaMem := val1(node, "{{ .status.capacity.memory }}")
+	capaPod := val1(node, "{{ .status.capacity.pods }}")
+	alloCPU := val1(node, "{{ .status.allocatable.cpu }}")
+	alloMem := val1(node, "{{ .status.allocatable.memory }}")
+	alloPod := val1(node, "{{ .status.allocatable.pods }}")
 	return NodeResourcesDef{ResDef: ResourcesDef{CPU: MustParse(capaCPU), Memory: MustParse(capaMem)}, Pods: toInt(capaPod)}, NodeResourcesDef{ResDef: ResourcesDef{CPU: MustParse(alloCPU), Memory: MustParse(alloMem)}, Pods: toInt(alloPod)}
 }
 
@@ -272,20 +268,32 @@ func usageOfPods(pods []interface{}) (ResourcesDef, ResourcesDef) {
 	return ResourcesDef{}, ResourcesDef{}
 }
 
-func resourcesOfContainer(container interface{}) (ResourcesDef, ResourcesDef) {
-	reqCPU := val(container, []interface{}{"resources", "requests", "cpu"}, "0m").(string)
-	reqMem := val(container, []interface{}{"resources", "requests", "memory"}, "0Ki").(string)
-	limCPU := val(container, []interface{}{"resources", "limits", "cpu"}, "0m").(string)
-	limMem := val(container, []interface{}{"resources", "limits", "memory"}, "0Ki").(string)
-	return ResourcesDef{CPU: MustParse(reqCPU), Memory: MustParse(reqMem)}, ResourcesDef{CPU: MustParse(limCPU), Memory: MustParse(limMem)}
-}
-
 func resourcesOfPod(pod interface{}) (ResourcesDef, ResourcesDef) {
-	spec := pod.(map[string]interface{})["spec"]
-	cons := spec.(map[string]interface{})["containers"].([]interface{})
-	rpReq, rpLimit := resourcesOfContainer(cons[0])
-	for _, c := range cons[1:] {
-		req, lim := resourcesOfContainer(c)
+	tpl := `
+	{{- range .spec.containers -}}
+	;{{.resources.requests.cpu}},{{.resources.requests.memory}},{{.resources.limits.cpu}},{{.resources.limits.memory}}
+	{{- end -}}
+	`
+	podresStr := val1(pod, tpl)
+	podRess := strings.Split(podresStr[1:], ";")
+	rpReq := ResourcesDef{CPU: MustParse("0m"), Memory: MustParse("0Mi")}
+	rpLimit := ResourcesDef{CPU: MustParse("0m"), Memory: MustParse("0Mi")}
+	for _, res := range podRess {
+		ress := strings.Split(res, ",")
+		if ress[0] == "<no value>" {
+			ress[0] = "0m"
+		}
+		if ress[1] == "<no value>" {
+			ress[1] = "0Mi"
+		}
+		if ress[2] == "<no value>" {
+			ress[2] = "0m"
+		}
+		if ress[3] == "<no value>" {
+			ress[3] = "0Mi"
+		}
+		req := ResourcesDef{CPU: MustParse(ress[0]), Memory: MustParse(ress[1])}
+		lim := ResourcesDef{CPU: MustParse(ress[2]), Memory: MustParse(ress[3])}
 		rpReq.add(req)
 		rpLimit.add(lim)
 	}
@@ -434,20 +442,36 @@ func marshalYaml(data interface{}) string {
 	return string(b)
 }
 
-func labels(it interface{}) map[string]interface{} {
-	return valMap(it, []interface{}{"metadata", "labels"})
+func labelValue(it interface{}, label string) string {
+	return val1(it, fmt.Sprintf("{{ .metadata.labels.%s }}", label))
+}
+
+func annotations(it interface{}) string {
+	return stripMap(val1(it, "{{ .metadata.annotations }}"))
+}
+
+func stripMap(s string) string {
+	s = strings.Replace(s, "map[", "", -1)
+	s = strings.Replace(s, "]", "", -1)
+	s = strings.Replace(s, "[", "", -1)
+	return s
 }
 
 func ports(it interface{}) []containerPort {
 	res := make([]containerPort, 0)
-	cons := valArray(it, []interface{}{"spec", "containers"})
-	for _, c := range cons {
-		ports := valArray(c, []interface{}{"ports"})
-		for _, p := range ports {
-			cp := val(p, []interface{}{"containerPort"}, "")
-			cpName := val(p, []interface{}{"name"}, "").(string)
-			res = append(res, containerPort{name: cpName, port: int(cp.(float64))})
-		}
+	portNamesTpl := `
+	{{- range .spec.containers -}}
+	{{- range .ports -}}
+	;{{- .name -}},{{- .containerPort -}}
+	{{- end -}}
+	{{- end -}}
+	`
+	portsStr := val1(it, portNamesTpl)[1:]
+	ports := strings.Split(portsStr, ";")
+	for _, ps := range ports {
+		pss := strings.Split(ps, ",")
+		portInt, _ := strconv.ParseInt(pss[1], 10, 32)
+		res = append(res, containerPort{name: pss[0], port: int(portInt)})
 	}
 	return res
 
@@ -479,10 +503,6 @@ func portForwardPortsLong(pod interface{}) string {
 		s := fmt.Sprintf("%s[%v -> %v]", pm.containerPort.name, pm.destPort, pm.containerPort.port)
 		return s
 	})
-}
-
-func annotations(it interface{}) map[string]interface{} {
-	return valMap(it, []interface{}{"metadata", "annotations"})
 }
 
 func age(it interface{}) string {
@@ -533,11 +553,7 @@ func keys(it interface{}) interface{} {
 }
 
 func printArray(it interface{}) string {
-	s := printArray0(it, func(itt interface{}) string {
-		vs := fmt.Sprintf("%v", itt)
-		return strings.Trim(vs, "\"")
-	}, ",", "", "")
-	return s.(string)
+	return stripMap(val1(it, "{{ . }}"))
 }
 
 func status(desired, ready interface{}) string {
@@ -556,36 +572,20 @@ func status(desired, ready interface{}) string {
 	return "Succeeded"
 }
 
-func fromChildrenWhenEquals(it interface{}, equalsKey, equalsValue, returnValueKey, notFoundValue string) interface{} {
-	fil := filterArray(it, func(itt interface{}) bool {
-		switch itt.(type) {
-		case map[string]interface{}:
-			mcc := itt.(map[string]interface{})
-			return mcc[equalsKey] == equalsValue
-		}
-		return false
-	})
-	return val(fil, []interface{}{0, returnValueKey}, notFoundValue)
+func fromChildrenWhenEquals(it interface{}, equalsKey, equalsValue, returnValueKey string) string {
+	fil := filterArrayOnTpl(it, fmt.Sprintf("{{ .%s }}", equalsKey), equalsValue)
+	val := val1(fil, fmt.Sprintf("{{ (index . 0).%s }}", returnValueKey))
+	return val
 }
 
-func mergeArrays(format string, it0 interface{}, key0 string, it1 interface{}, key1 string) interface{} {
-	a0 := toStringArray(it0, key0)
-	a1 := toStringArray(it1, key1)
-	s := make([]string, 0)
-	for i := 0; i < min(len(a0), len(a1)); i++ {
-		s0 := strings.Trim(a0[i], " []\"")
-		s1 := strings.Trim(a1[i], " []\"")
-		s = append(s, fmt.Sprintf(format, s0, s1))
-	}
-	return strings.Join(s, ",")
-
-}
-
-func keyString(key interface{}) string {
+func keyString(keyEvent interface{}) string {
 	keyStr := ""
-	switch key.(type) {
+
+	k := keyEvent.(keyEventType).Key
+	m := keyEvent.(keyEventType).mod
+
+	switch k.(type) {
 	case gocui.Key:
-		k := key.(gocui.Key)
 		switch k {
 		case gocui.KeyCtrlC:
 			keyStr = "Ctrl-C"
@@ -609,6 +609,10 @@ func keyString(key interface{}) string {
 			keyStr = "Ctrl-n"
 		case gocui.KeyCtrlP:
 			keyStr = "Ctrl-p"
+		case gocui.KeyCtrlA:
+			keyStr = "Ctrl-a"
+		case gocui.KeyCtrlD:
+			keyStr = "Ctrl-d"
 		case gocui.KeyCtrl2:
 			keyStr = "Ctrl-2"
 		case gocui.KeyCtrl3:
@@ -620,15 +624,19 @@ func keyString(key interface{}) string {
 		case gocui.KeyPgup:
 			keyStr = "Page Up"
 		case gocui.KeyDelete:
-			keyStr = "Delete"
-		default:
-			keyStr = fmt.Sprintf("%v", key)
+			if m == gocui.ModAlt {
+				keyStr = "Alt-Delete"
+			} else {
+				keyStr = "Delete"
+			}
 		}
+
 	case rune:
-		keyStr = string(key.(rune))
+		keyStr = string(k.(rune))
 	default:
 		keyStr = "error"
 	}
+
 	return keyStr
 }
 
@@ -648,78 +656,47 @@ func contextName(viewName interface{}) string {
 }
 
 func fromChildren(it interface{}, key string) string {
-	return strings.Join(toStringArray(it, key), ",")
-}
-
-func toStringArray(it interface{}, key string) []string {
-	return mapToStringArray(it, func(itt interface{}) string {
-		switch itt.(type) {
-		case map[string]interface{}:
-			return fmt.Sprintf("%v", itt.(map[string]interface{})[key])
-		}
-		return ""
-	})
-}
-
-//-- base functions
-
-func valMap(node interface{}, path []interface{}) map[string]interface{} {
-	res := val(node, path, "not found")
-	switch res.(type) {
-	case map[string]interface{}:
-		return res.(map[string]interface{})
-	default:
-		return map[string]interface{}{}
+	tpl := fmt.Sprintf("{{- range . -}},{{- .%s -}}{{- end -}}", key)
+	val := val1(it, tpl)
+	if len(val) > 0 {
+		return val[1:]
 	}
-}
-
-func valArray(node interface{}, path []interface{}) []interface{} {
-	res := val(node, path, "not found")
-	switch res.(type) {
-	case []interface{}:
-		return res.([]interface{})
-	default:
-		return []interface{}{}
-	}
+	return val
 }
 
 func resItemName(ri interface{}) string {
-	return val(ri, []interface{}{"metadata", "name"}, "").(string)
+	return val1(ri, "{{ .metadata.name }}")
 }
 func resItemNamespace(ri interface{}) string {
-	return val(ri, []interface{}{"metadata", "namespace"}, "").(string)
+	return val1(ri, "{{ .metadata.namespace }}")
 }
 
-func val(node interface{}, path []interface{}, notFoundVal string) interface{} {
-	for _, p := range path {
-		switch p.(type) {
-		case string:
-			switch node.(type) {
-			case map[string]interface{}:
-				node = node.(map[string]interface{})[p.(string)]
-			case map[interface{}]interface{}:
-				node = node.(map[interface{}]interface{})[p.(string)]
-			default:
-				return notFoundVal
-			}
-		case int:
-			switch node.(type) {
-			case []interface{}:
-				nodet := node.([]interface{})
-				if len(nodet) > p.(int) {
-					node = nodet[p.(int)]
-				} else {
-					return notFoundVal
-				}
-			default:
-				return notFoundVal
+func resItemCreationTimestamp(ri interface{}) string {
+	return val1(ri, "{{ .metadata.creationTimestamp }}")
+}
+
+func val1(node interface{}, path string) string {
+	tpl := tplNoFunc(path, path)
+	buf := new(bytes.Buffer)
+	err := tpl.Execute(buf, node)
+	if err == nil {
+		return buf.String()
+	}
+	return err.Error()
+}
+
+func filterArrayOnTpl(it interface{}, tmpl, equals string) interface{} {
+	r := make([]interface{}, 0)
+	switch it.(type) {
+	case []interface{}:
+		itt := it.([]interface{})
+		for _, v := range itt {
+			if val1(v, tmpl) == equals {
+				r = append(r, v)
 			}
 		}
 	}
-	if node == nil {
-		return notFoundVal
-	}
-	return node
+	return r
 }
 
 func filterArray(it interface{}, f func(item interface{}) bool) interface{} {
@@ -736,73 +713,6 @@ func filterArray(it interface{}, f func(item interface{}) bool) interface{} {
 	return r
 }
 
-func mapArray(it interface{}, f func(item interface{}) interface{}) interface{} {
-	r := make([]interface{}, 0)
-	switch it.(type) {
-	case []interface{}:
-		itt := it.([]interface{})
-		for _, v := range itt {
-			r = append(r, f(v))
-		}
-	}
-	return r
-}
-
-func filterMap(it interface{}, f func(key string, value interface{}) bool) map[string]interface{} {
-	r := map[string]interface{}{}
-	switch it.(type) {
-	case map[string]interface{}:
-		itt := it.(map[string]interface{})
-		for k, v := range itt {
-			if f(k, v) {
-				r[k] = v
-			}
-		}
-	}
-	return r
-}
-
-func mapToStringArray(it interface{}, f func(item interface{}) string) []string {
-	r := make([]string, 0)
-	switch it.(type) {
-	case []interface{}:
-		itt := it.([]interface{})
-		for _, v := range itt {
-			r = append(r, f(v))
-		}
-	}
-	return r
-}
-
-func printArray0(it interface{}, f func(item interface{}) string, separator, beginLimiter, endLimiter string) interface{} {
-	sa := mapToStringArray(it, f)
-	sort.Strings(sa)
-	var buffer bytes.Buffer
-	buffer.WriteString(beginLimiter)
-	for i, v := range sa {
-		s := f(v)
-		buffer.WriteString(s)
-		if i < len(sa)-1 {
-			buffer.WriteString(separator)
-		}
-	}
-	buffer.WriteString(endLimiter)
-	return buffer.String()
-}
-
 func printMap(it interface{}) string {
-	var buffer bytes.Buffer
-	switch it.(type) {
-	case map[string]interface{}:
-		itt := it.(map[string]interface{})
-		keys := make([]string, 0, len(itt))
-		for key := range itt {
-			keys = append(keys, key)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			buffer.WriteString(fmt.Sprintf("%s:%s,", k, itt[k]))
-		}
-	}
-	return strings.TrimRight(buffer.String(), ",")
+	return stripMap(fmt.Sprintf("%s", it))
 }

@@ -315,6 +315,7 @@ func initGui() {
 
 	bindKeys()
 	if currentState.name != browseState.name {
+		namespaceList.widget.visible = false
 		setState(browseState)
 		if cfg.isNew {
 			setState(helpState)
@@ -523,7 +524,9 @@ func nextResourceCategory(offset int) {
 }
 
 func newResourceCategory() {
-	resourceMenu.widget.title = fmt.Sprintf("[R]esources - %s", resourceCategories[selectedResourceCategoryIndex])
+	resCat := resourceCategories[selectedResourceCategoryIndex]
+	resourceMenu.widget.title = fmt.Sprintf("[R]esources - %s", resCat)
+	namespaceList.widget.visible = resCat != "cluster/metadata"
 
 	resourceMenu.widget.selectedItem = 0
 	resourceMenu.widget.items = resources()
@@ -627,11 +630,11 @@ func ageSorting() {
 	}
 }
 
-func deleteResource() {
+func deleteResource(noGracePeriod bool) {
 	ns := selectedResourceItemNamespace()
 	res := selectedResource()
 	rname := selectedResourceItemName()
-	_, err := backend.delete(ns, res, rname)
+	_, err := backend.delete(ns, res, rname, noGracePeriod)
 	if err != nil {
 		showError(fmt.Sprintf("Can't delete %s on namespace %s with name '%s' ", res.Name, ns, rname), err)
 	}
@@ -770,6 +773,7 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousResourceItemListPageCommand)
 
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyDelete, mod: gocui.ModNone}, deleteConfirmCommand)
+	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyDelete, mod: gocui.ModAlt}, deleteNoGracePeriodConfirmCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '+', mod: gocui.ModNone}, scaleUpCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '-', mod: gocui.ModNone}, scaleDownCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'm', mod: gocui.ModNone}, nameSortCommand)

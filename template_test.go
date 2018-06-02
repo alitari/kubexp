@@ -30,39 +30,36 @@ func TestMain(m *testing.M) {
 func Test_funcMap_pods(t *testing.T) {
 	data := loadData("pods.json")
 	checkTpl(t, "{{(index .items 0).metadata.name  }}", data, "calico-etcd-bkcr2")
-	//checkTpl(t, "{{(index .items 0).metadata.labels | printMap }}", data, "k8s-app:calico-etcd,pod-template-generation:1")
-	checkTpl(t, `{{ fcwe (index .items 0).status.conditions "status" "True" "type" "unknown" }}`, data, "Initialized")
+	checkTpl(t, `{{ fcwe (index .items 0).status.conditions "status" "True" "type" }}`, data, "Initialized")
 }
 
 func Test_val(t *testing.T) {
 	data := loadData("pods.json")
-	firstPodUID := val(data, []interface{}{"items", 0, "metadata", "uid"}, "notFound")
-	check(t, firstPodUID.(string), "664ce375-5059-11e7-90fb-e8039a27cebe")
+	firstPodUID := val1(data, "{{ ( index .items 0 ).metadata.uid }}")
+	secondPodUID := val1(data, "{{ ( index .items 1 ).metadata.uid }}")
+	check(t, firstPodUID, "664ce375-5059-11e7-90fb-e8039a27cebe")
+	check(t, secondPodUID, "67d9fe5c-5059-11e7-90fb-e8039a27cebe")
 }
 
 func Test_labels(t *testing.T) {
 	data := loadData("pods-minio-minio-3709128164-vdwk1.json")
-	labels := labels(data)
-
-	check(t, labels["app"].(string), "minio-minio")
-	check(t, labels["chart"].(string), "minio-0.1.2")
+	applabel := labelValue(data, "app")
+	check(t, applabel, "minio-minio")
 }
 
 func Test_ports(t *testing.T) {
 	data := loadData("pods-minio-minio-3709128164-vdwk1.json")
 	ports := ports(data)
-
 	checkInt(t, ports[0].port, 9000)
 	check(t, ports[0].name, "service0")
 	checkInt(t, ports[1].port, 9001)
 	check(t, ports[1].name, "service1")
-
 }
 
 func Test_annotations(t *testing.T) {
 	data := loadData("pods-minio-minio-3709128164-vdwk1.json")
 	anno := annotations(data)
-	check(t, anno["anno1"].(string), "anno1-value")
+	check(t, anno, "anno1:anno1-value")
 }
 
 func Test_funcMap_serviceAccounts(t *testing.T) {
@@ -79,7 +76,6 @@ func Test_funcMap_endpoints(t *testing.T) {
 	data := loadData("endpoints.json")
 	checkTpl(t, `{{ (index (index (index .items 0).subsets 0).addresses 0).ip }}`, data, "192.168.0.87")
 	checkTpl(t, `{{ (index (index (index .items 0).subsets 0).ports 0).port }}`, data, "6443")
-	checkTpl(t, `{{ mergeArrays "%s:%s" (index (index .items 0).subsets 0).addresses "ip" (index (index .items 0).subsets 0).ports "port"  }}`, data, "192.168.0.87:6443,192.168.0.88:6444")
 }
 
 func Test_nodeResources(t *testing.T) {
@@ -90,19 +86,17 @@ func Test_nodeResources(t *testing.T) {
 	check(t, allo.String(), "cpu:2/memory:7888692Ki/pods:110")
 }
 
-func Test_containerResources(t *testing.T) {
-	pod := loadData("pods-minio-minio-3709128164-vdwk1.json")
-	con := pod.(map[string]interface{})["spec"].(map[string]interface{})["containers"].([]interface{})[0]
-	req, limit := resourcesOfContainer(con)
-	check(t, req.String(), "cpu:250m/memory:256Mi")
-	check(t, limit.String(), "cpu:990m/memory:1Gi")
-}
-
 func Test_podResources(t *testing.T) {
 	pod := loadData("multicontainer.json")
 	req, limit := resourcesOfPod(pod)
 	check(t, req.String(), "cpu:360m/memory:356Mi")
 	check(t, limit.String(), "cpu:1990m/memory:3Gi")
+}
+
+func Test_printMap(t *testing.T) {
+	m := map[string]interface{}{"alex": "Hello", "bread": "egg"}
+	checkContains(t, printMap(m), "bread:egg")
+	checkContains(t, printMap(m), "alex:Hello")
 }
 
 // func Test_helpTemplate(t *testing.T) {
@@ -123,6 +117,12 @@ func Test_podResources(t *testing.T) {
 // Browse          ArrowUp          Previous resource item         `
 // 	checkTpl(t, helpTemplate, data, exp)
 // }
+
+func checkContains(t *testing.T, a string, expected string) {
+	if !strings.Contains(a, expected) {
+		t.Errorf("unexpected result: expected:'%s', is in '%s' ", expected, a)
+	}
+}
 
 func check(t *testing.T, a string, expected string) {
 	if a != expected {

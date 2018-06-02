@@ -46,24 +46,6 @@ func newExecCommand(name, cmd string, containerNr int) commandType {
 
 		exe <- cmd
 		return gocui.ErrQuit
-
-		// pod := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
-		// containers := val(pod, []interface{}{"spec", "containers"}, "")
-		// containerNames := toStringArray(containers, "name")
-		// if containerNr < len(containerNames) {
-		// 	setState(execPodState)
-		// 	execWidget.title = fmt.Sprintf("exec container '%s' in pod '%s'", containerNames[containerNr], rname)
-		// 	cmd := exec.Command("kubectl", "-n", ns, "exec", "-it", rname, "bash")
-		// 	err := execWidget.open(g, cmd, func() {
-		// 		g.Cursor = false
-		// 		setState(browseState)
-		// 		execWidget.close()
-		// 	})
-		// 	if err != nil {
-		// 		showError("Can't exec into pod", err)
-		// 		return nil
-		// 	}
-		// }
 	}}
 	return execCommand
 }
@@ -150,11 +132,17 @@ var executeConfirmCommand = commandType{Name: "Execute command to confirm", f: f
 }}
 
 var deleteCommand = commandType{Name: "Delete resource", f: func(g *gocui.Gui, v *gocui.View) error {
-	deleteResource()
+	deleteResource(false)
+	return nil
+}}
+
+var deleteNoGracePeriodCommand = commandType{Name: "Delete resource", f: func(g *gocui.Gui, v *gocui.View) error {
+	deleteResource(true)
 	return nil
 }}
 
 var deleteConfirmCommand = newConfirmCommand("Delete resource", deleteCommand)
+var deleteNoGracePeriodConfirmCommand = newConfirmCommand("Delete resource immediately", deleteNoGracePeriodCommand)
 
 var nameSortCommand = commandType{Name: "Sort by name", f: func(g *gocui.Gui, v *gocui.View) error {
 	nameSorting()
@@ -309,7 +297,9 @@ var previousContextPageCommand = commandType{Name: "Next context", f: func(g *go
 }}
 
 var gotoSelectNamespaceStateCommand = commandType{Name: "Select namespace", f: func(g *gocui.Gui, v *gocui.View) error {
-	setState(selectNsState)
+	if namespaceList.widget.visible {
+		setState(selectNsState)
+	}
 	return nil
 }}
 

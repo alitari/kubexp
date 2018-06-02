@@ -50,8 +50,8 @@ func (s *nameSorterType) getElements() []interface{} {
 }
 
 func (s *nameSorterType) Less(i, j int) bool {
-	iName := val(s.elements[i], []interface{}{"metadata", "name"}, "").(string)
-	jName := val(s.elements[j], []interface{}{"metadata", "name"}, "").(string)
+	iName := resItemName(s.elements[i])
+	jName := resItemName(s.elements[j])
 	var res bool
 	if len(iName) > 0 && len(jName) > 0 {
 		res = strings.Compare(iName, jName) < 0
@@ -95,8 +95,8 @@ func (s *timeSorterType) getElements() []interface{} {
 }
 
 func (s *timeSorterType) Less(i, j int) bool {
-	itimeStr := val(s.elements[i], []interface{}{"metadata", "creationTimestamp"}, "").(string)
-	jtimeStr := val(s.elements[j], []interface{}{"metadata", "creationTimestamp"}, "").(string)
+	itimeStr := resItemCreationTimestamp(s.elements[i])
+	jtimeStr := resItemCreationTimestamp(s.elements[j])
 	var res bool
 	if len(itimeStr) > 0 && len(jtimeStr) > 0 {
 		itime := totime(itimeStr)
@@ -208,13 +208,17 @@ func (b *backendType) closeWatches() {
 	}
 }
 
-func (b *backendType) delete(ns string, resource resourceType, resourceItem string) (interface{}, error) {
+func (b *backendType) delete(ns string, resource resourceType, resourceItem string, noGracePeriod bool) (interface{}, error) {
 	var rc string
 	var err error
+	queryParam := ""
+	if noGracePeriod {
+		queryParam = "?gracePeriodSeconds=0"
+	}
 	if resource.Namespace {
-		rc, err = b.restCall(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), ns, "")
+		rc, err = b.restCall(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s%s", resource.Name, resourceItem, queryParam), ns, "")
 	} else {
-		rc, err = b.restCallNoNs(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), "")
+		rc, err = b.restCallNoNs(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s%s", resource.Name, resourceItem, queryParam), "")
 	}
 	if err != nil {
 		return rc, err

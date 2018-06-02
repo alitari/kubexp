@@ -73,7 +73,7 @@ var helpTemplate = colorizeText(fmt.Sprintf(`
 __________________________________________________________________
 {{- range . }}
 {{ .KeyEvent.Viewname | ctx | printf " %-15.15s " -}}
-{{ .KeyEvent.Key | keyStr | printf " %-16.16s " -}}
+{{ .KeyEvent | keyStr | printf " %-16.16s " -}}
 {{ .Command.Name | printf " %-30.30s " -}}
 {{ end }}`, 0, 180, yellowEmpInlineColor)
 
@@ -144,10 +144,10 @@ var defaultResources = []resourceType{
 			{
 				Name: "list",
 				Template: `{{- header "Name" . .metadata.name | printf "%-40.40s " -}}
-{{- header "Status" . (fcwe .status.conditions "status" "True" "type" "unknown") | printf "%-8.8s " -}}
+{{- header "Status" . (fcwe .status.conditions "status" "True" "type") | printf "%-8.8s " -}}
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 {{- header "Version" . .status.nodeInfo.kubeletVersion | printf "%-10.10s " -}}
-{{- header "Internal-IP" . ( fcwe .status.addresses "type" "InternalIP" "address" "unknown") | printf "%-12.12s " -}}
+{{- header "Internal-IP" . ( fcwe .status.addresses "type" "InternalIP" "address") | printf "%-12.12s " -}}
 {{- header "OS Image" . .status.nodeInfo.osImage | printf "%-25.25s " -}}
 {{- header "Kernel Version" . .status.nodeInfo.kernelVersion | printf "%s " -}}`,
 			},
@@ -166,7 +166,7 @@ var defaultResources = []resourceType{
 			yamlView,
 			jsonView,
 		}},
-	{Name: "resourcequotas", APIPrefix: "api/v1", ShortName: "quota", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "resourcequotas", APIPrefix: "api/v1", ShortName: "quota", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name:     "list",
@@ -175,7 +175,7 @@ var defaultResources = []resourceType{
 			yamlView,
 			jsonView,
 		}},
-	{Name: "serviceaccounts", APIPrefix: "api/v1", ShortName: "sa", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "serviceaccounts", APIPrefix: "api/v1", ShortName: "sa", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -191,9 +191,9 @@ var defaultResources = []resourceType{
 			{
 				Name: "list",
 				Template: `{{- header "Name" . .metadata.name | printf "%-50.50s " -}}
-{{- header "Status" . (fcwe .conditions "status" "True" "type" "unknown") | printf "%-12.12s " -}}
-{{- header "Message" . (fcwe .conditions "status" "True" "message" "unknown") | printf "%-30.30s " -}}
-{{- header "Error" . (fcwe .conditions "status" "True" "error" "") | printf "%s " -}}`,
+{{- header "Status" . (fcwe .conditions "status" "True" "type" ) | printf "%-12.12s " -}}
+{{- header "Message" . (fcwe .conditions "status" "True" "message" ) | printf "%-30.30s " -}}
+{{- header "Error" . (fcwe .conditions "status" "True" "error" ) | printf "%s " -}}`,
 			},
 			yamlView,
 			jsonView,
@@ -213,7 +213,7 @@ var defaultResources = []resourceType{
 			yamlView,
 			jsonView,
 		}},
-	{Name: "events", APIPrefix: "api/v1", ShortName: "ev", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "events", APIPrefix: "api/v1", ShortName: "ev", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -227,7 +227,7 @@ var defaultResources = []resourceType{
 			yamlView,
 			jsonView,
 		}},
-	{Name: "limitranges", APIPrefix: "api/v1", ShortName: "limits", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "limitranges", APIPrefix: "api/v1", ShortName: "limits", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name:     "list",
@@ -236,7 +236,7 @@ var defaultResources = []resourceType{
 			yamlView,
 			jsonView,
 		}},
-	{Name: "podtemplates", APIPrefix: "api/v1", ShortName: "podtemplates", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "podtemplates", APIPrefix: "api/v1", ShortName: "podtemplates", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name:     "list",
@@ -250,8 +250,7 @@ var defaultResources = []resourceType{
 			{
 				Name: "list",
 				Template: `{{- header "Name" . .metadata.name | printf "%-50.50s " -}}
-{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
-{{- header "Address-IP" . (mergeArrays "%s:%s" (ind .subsets 0).addresses "ip" (ind .subsets 0).ports "port") | printf "%s " -}}`,
+{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}`,
 			},
 			viewType{
 				Name:     "info",
@@ -542,7 +541,7 @@ No Data
 			yamlView,
 			jsonView,
 		}},
-	{Name: "storageclasses", APIPrefix: "apis/storage.k8s.io/v1beta1", ShortName: "storagecl", Category: "config/storage/discovery/loadbalancing", Namespace: false, Watch: true,
+	{Name: "storageclasses", APIPrefix: "apis/storage.k8s.io/v1beta1", ShortName: "storagecl", Category: "cluster/metadata", Namespace: false, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -554,7 +553,7 @@ No Data
 			yamlView,
 			jsonView,
 		}},
-	{Name: "poddisruptionbudgets", APIPrefix: "apis/policy/v1beta1", ShortName: "pdb", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "poddisruptionbudgets", APIPrefix: "apis/policy/v1beta1", ShortName: "pdb", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -568,7 +567,7 @@ No Data
 			jsonView,
 		}},
 	//NAME           POD-SELECTOR   AGE
-	{Name: "networkpolicies", APIPrefix: "apis/extensions/v1beta1", ShortName: "netpol", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "networkpolicies", APIPrefix: "apis/extensions/v1beta1", ShortName: "netpol", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -623,7 +622,7 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			yamlView,
 			jsonView,
 		}},
-	{Name: "horizontalpodautoscalers", APIPrefix: "apis/autoscaling/v1", ShortName: "hpa", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "horizontalpodautoscalers", APIPrefix: "apis/autoscaling/v1", ShortName: "hpa", Category: "namespacve/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -638,7 +637,7 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			yamlView,
 			jsonView,
 		}},
-	{Name: "roles", APIPrefix: "apis/rbac.authorization.k8s.io/v1", ShortName: "roles", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "roles", APIPrefix: "apis/rbac.authorization.k8s.io/v1", ShortName: "roles", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -664,7 +663,7 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			yamlView,
 			jsonView,
 		}},
-	{Name: "rolebindings", APIPrefix: "apis/rbac.authorization.k8s.io/v1", ShortName: "rolebindings", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "rolebindings", APIPrefix: "apis/rbac.authorization.k8s.io/v1", ShortName: "rolebindings", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -793,7 +792,7 @@ func (c *configType) resView(res resourceType, filter func(viewType) bool) (ret 
 }
 
 func (c *configType) allResourceCategories() []string {
-	return []string{"cluster/metadata", "workloads", "config/storage/discovery/loadbalancing"}
+	return []string{"cluster/metadata", "workloads", "config/storage/discovery/loadbalancing", "namespace/metadata"}
 }
 
 func (c *configType) createResources() *configType {
@@ -887,13 +886,13 @@ func (c *configType) isAvailable(ct contextType) bool {
 }
 
 func (c *configType) parseCluster(cfg map[string]interface{}, cm interface{}) clusterType {
-	clusterName := val(cm, []interface{}{"cluster"}, "").(string)
+	clusterName := val1(cm, "{{.cluster}}")
 	tracelog.Printf("clusterName: %s", clusterName)
 	if len(clusterName) == 0 {
 		errorlog.Fatalf("No cluster found in context %v", cm)
 	}
 	cluster := filterArrayOnKeyValue(cfg["clusters"], "name", clusterName).([]interface{})[0]
-	server := val(cluster, []interface{}{"cluster", "server"}, "").(string)
+	server := val1(cluster, "{{.cluster.server}}")
 	if server == "" {
 		errorlog.Fatalf("No server found in file %s", c.configFile)
 	}
@@ -905,12 +904,12 @@ func (c *configType) parseCluster(cfg map[string]interface{}, cm interface{}) cl
 }
 
 func (c *configType) parseUser(cfg map[string]interface{}, cm interface{}) (userType, error) {
-	userName := val(cm, []interface{}{"user"}, "").(string)
+	userName := val1(cm, "{{.user}}")
 	if len(userName) == 0 {
 		errorlog.Fatalf("No user found in context %v", cm)
 	}
 	user := filterArrayOnKeyValue(cfg["users"], "name", userName).([]interface{})[0]
-	token := val(user, []interface{}{"user", "token"}, "").(string)
+	token := val1(user, "{{.user.token}}")
 	if token == "" {
 		mess := fmt.Sprintf("No token found in user %s", userName)
 		return userType{}, errors.New(mess)
