@@ -578,11 +578,14 @@ func fromChildrenWhenEquals(it interface{}, equalsKey, equalsValue, returnValueK
 	return val
 }
 
-func keyString(key interface{}) string {
+func keyString(keyEvent interface{}) string {
 	keyStr := ""
-	switch key.(type) {
+
+	k := keyEvent.(keyEventType).Key
+	m := keyEvent.(keyEventType).mod
+
+	switch k.(type) {
 	case gocui.Key:
-		k := key.(gocui.Key)
 		switch k {
 		case gocui.KeyCtrlC:
 			keyStr = "Ctrl-C"
@@ -606,6 +609,10 @@ func keyString(key interface{}) string {
 			keyStr = "Ctrl-n"
 		case gocui.KeyCtrlP:
 			keyStr = "Ctrl-p"
+		case gocui.KeyCtrlA:
+			keyStr = "Ctrl-a"
+		case gocui.KeyCtrlD:
+			keyStr = "Ctrl-d"
 		case gocui.KeyCtrl2:
 			keyStr = "Ctrl-2"
 		case gocui.KeyCtrl3:
@@ -617,15 +624,19 @@ func keyString(key interface{}) string {
 		case gocui.KeyPgup:
 			keyStr = "Page Up"
 		case gocui.KeyDelete:
-			keyStr = "Delete"
-		default:
-			keyStr = fmt.Sprintf("%v", key)
+			if m == gocui.ModAlt {
+				keyStr = "Alt-Delete"
+			} else {
+				keyStr = "Delete"
+			}
 		}
+
 	case rune:
-		keyStr = string(key.(rune))
+		keyStr = string(k.(rune))
 	default:
 		keyStr = "error"
 	}
+
 	return keyStr
 }
 

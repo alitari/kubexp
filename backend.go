@@ -208,13 +208,17 @@ func (b *backendType) closeWatches() {
 	}
 }
 
-func (b *backendType) delete(ns string, resource resourceType, resourceItem string) (interface{}, error) {
+func (b *backendType) delete(ns string, resource resourceType, resourceItem string, noGracePeriod bool) (interface{}, error) {
 	var rc string
 	var err error
+	queryParam := ""
+	if noGracePeriod {
+		queryParam = "?gracePeriodSeconds=0"
+	}
 	if resource.Namespace {
-		rc, err = b.restCall(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), ns, "")
+		rc, err = b.restCall(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s%s", resource.Name, resourceItem, queryParam), ns, "")
 	} else {
-		rc, err = b.restCallNoNs(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, resourceItem), "")
+		rc, err = b.restCallNoNs(http.MethodDelete, resource.APIPrefix, fmt.Sprintf("%s/%s%s", resource.Name, resourceItem, queryParam), "")
 	}
 	if err != nil {
 		return rc, err

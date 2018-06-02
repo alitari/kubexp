@@ -132,11 +132,17 @@ var executeConfirmCommand = commandType{Name: "Execute command to confirm", f: f
 }}
 
 var deleteCommand = commandType{Name: "Delete resource", f: func(g *gocui.Gui, v *gocui.View) error {
-	deleteResource()
+	deleteResource(false)
+	return nil
+}}
+
+var deleteNoGracePeriodCommand = commandType{Name: "Delete resource", f: func(g *gocui.Gui, v *gocui.View) error {
+	deleteResource(true)
 	return nil
 }}
 
 var deleteConfirmCommand = newConfirmCommand("Delete resource", deleteCommand)
+var deleteNoGracePeriodConfirmCommand = newConfirmCommand("Delete resource immediately", deleteNoGracePeriodCommand)
 
 var nameSortCommand = commandType{Name: "Sort by name", f: func(g *gocui.Gui, v *gocui.View) error {
 	nameSorting()

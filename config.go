@@ -73,7 +73,7 @@ var helpTemplate = colorizeText(fmt.Sprintf(`
 __________________________________________________________________
 {{- range . }}
 {{ .KeyEvent.Viewname | ctx | printf " %-15.15s " -}}
-{{ .KeyEvent.Key | keyStr | printf " %-16.16s " -}}
+{{ .KeyEvent | keyStr | printf " %-16.16s " -}}
 {{ .Command.Name | printf " %-30.30s " -}}
 {{ end }}`, 0, 180, yellowEmpInlineColor)
 
