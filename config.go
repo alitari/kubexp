@@ -144,10 +144,10 @@ var defaultResources = []resourceType{
 			{
 				Name: "list",
 				Template: `{{- header "Name" . .metadata.name | printf "%-40.40s " -}}
-{{- header "Status" . (fcwe .status.conditions "status" "True" "type" "unknown") | printf "%-8.8s " -}}
+{{- header "Status" . (fcwe .status.conditions "status" "True" "type") | printf "%-8.8s " -}}
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 {{- header "Version" . .status.nodeInfo.kubeletVersion | printf "%-10.10s " -}}
-{{- header "Internal-IP" . ( fcwe .status.addresses "type" "InternalIP" "address" "unknown") | printf "%-12.12s " -}}
+{{- header "Internal-IP" . ( fcwe .status.addresses "type" "InternalIP" "address") | printf "%-12.12s " -}}
 {{- header "OS Image" . .status.nodeInfo.osImage | printf "%-25.25s " -}}
 {{- header "Kernel Version" . .status.nodeInfo.kernelVersion | printf "%s " -}}`,
 			},
@@ -191,9 +191,9 @@ var defaultResources = []resourceType{
 			{
 				Name: "list",
 				Template: `{{- header "Name" . .metadata.name | printf "%-50.50s " -}}
-{{- header "Status" . (fcwe .conditions "status" "True" "type" "unknown") | printf "%-12.12s " -}}
-{{- header "Message" . (fcwe .conditions "status" "True" "message" "unknown") | printf "%-30.30s " -}}
-{{- header "Error" . (fcwe .conditions "status" "True" "error" "") | printf "%s " -}}`,
+{{- header "Status" . (fcwe .conditions "status" "True" "type" ) | printf "%-12.12s " -}}
+{{- header "Message" . (fcwe .conditions "status" "True" "message" ) | printf "%-30.30s " -}}
+{{- header "Error" . (fcwe .conditions "status" "True" "error" ) | printf "%s " -}}`,
 			},
 			yamlView,
 			jsonView,
@@ -250,8 +250,7 @@ var defaultResources = []resourceType{
 			{
 				Name: "list",
 				Template: `{{- header "Name" . .metadata.name | printf "%-50.50s " -}}
-{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
-{{- header "Address-IP" . (mergeArrays "%s:%s" (ind .subsets 0).addresses "ip" (ind .subsets 0).ports "port") | printf "%s " -}}`,
+{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}`,
 			},
 			viewType{
 				Name:     "info",
@@ -887,13 +886,13 @@ func (c *configType) isAvailable(ct contextType) bool {
 }
 
 func (c *configType) parseCluster(cfg map[string]interface{}, cm interface{}) clusterType {
-	clusterName := val(cm, []interface{}{"cluster"}, "").(string)
+	clusterName := val1(cm, "{{.cluster}}")
 	tracelog.Printf("clusterName: %s", clusterName)
 	if len(clusterName) == 0 {
 		errorlog.Fatalf("No cluster found in context %v", cm)
 	}
 	cluster := filterArrayOnKeyValue(cfg["clusters"], "name", clusterName).([]interface{})[0]
-	server := val(cluster, []interface{}{"cluster", "server"}, "").(string)
+	server := val1(cluster, "{{.cluster.server}}")
 	if server == "" {
 		errorlog.Fatalf("No server found in file %s", c.configFile)
 	}
@@ -905,12 +904,12 @@ func (c *configType) parseCluster(cfg map[string]interface{}, cm interface{}) cl
 }
 
 func (c *configType) parseUser(cfg map[string]interface{}, cm interface{}) (userType, error) {
-	userName := val(cm, []interface{}{"user"}, "").(string)
+	userName := val1(cm, "{{.user}}")
 	if len(userName) == 0 {
 		errorlog.Fatalf("No user found in context %v", cm)
 	}
 	user := filterArrayOnKeyValue(cfg["users"], "name", userName).([]interface{})[0]
-	token := val(user, []interface{}{"user", "token"}, "").(string)
+	token := val1(user, "{{.user.token}}")
 	if token == "" {
 		mess := fmt.Sprintf("No token found in user %s", userName)
 		return userType{}, errors.New(mess)

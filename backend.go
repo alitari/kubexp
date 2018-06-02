@@ -50,8 +50,8 @@ func (s *nameSorterType) getElements() []interface{} {
 }
 
 func (s *nameSorterType) Less(i, j int) bool {
-	iName := val(s.elements[i], []interface{}{"metadata", "name"}, "").(string)
-	jName := val(s.elements[j], []interface{}{"metadata", "name"}, "").(string)
+	iName := resItemName(s.elements[i])
+	jName := resItemName(s.elements[j])
 	var res bool
 	if len(iName) > 0 && len(jName) > 0 {
 		res = strings.Compare(iName, jName) < 0
@@ -95,8 +95,8 @@ func (s *timeSorterType) getElements() []interface{} {
 }
 
 func (s *timeSorterType) Less(i, j int) bool {
-	itimeStr := val(s.elements[i], []interface{}{"metadata", "creationTimestamp"}, "").(string)
-	jtimeStr := val(s.elements[j], []interface{}{"metadata", "creationTimestamp"}, "").(string)
+	itimeStr := resItemCreationTimestamp(s.elements[i])
+	jtimeStr := resItemCreationTimestamp(s.elements[j])
 	var res bool
 	if len(itimeStr) > 0 && len(jtimeStr) > 0 {
 		itime := totime(itimeStr)
