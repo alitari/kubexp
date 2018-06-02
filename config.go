@@ -166,7 +166,7 @@ var defaultResources = []resourceType{
 			yamlView,
 			jsonView,
 		}},
-	{Name: "resourcequotas", APIPrefix: "api/v1", ShortName: "quota", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "resourcequotas", APIPrefix: "api/v1", ShortName: "quota", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name:     "list",
@@ -175,7 +175,7 @@ var defaultResources = []resourceType{
 			yamlView,
 			jsonView,
 		}},
-	{Name: "serviceaccounts", APIPrefix: "api/v1", ShortName: "sa", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "serviceaccounts", APIPrefix: "api/v1", ShortName: "sa", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -213,7 +213,7 @@ var defaultResources = []resourceType{
 			yamlView,
 			jsonView,
 		}},
-	{Name: "events", APIPrefix: "api/v1", ShortName: "ev", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "events", APIPrefix: "api/v1", ShortName: "ev", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -227,7 +227,7 @@ var defaultResources = []resourceType{
 			yamlView,
 			jsonView,
 		}},
-	{Name: "limitranges", APIPrefix: "api/v1", ShortName: "limits", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "limitranges", APIPrefix: "api/v1", ShortName: "limits", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name:     "list",
@@ -236,7 +236,7 @@ var defaultResources = []resourceType{
 			yamlView,
 			jsonView,
 		}},
-	{Name: "podtemplates", APIPrefix: "api/v1", ShortName: "podtemplates", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "podtemplates", APIPrefix: "api/v1", ShortName: "podtemplates", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name:     "list",
@@ -541,7 +541,7 @@ No Data
 			yamlView,
 			jsonView,
 		}},
-	{Name: "storageclasses", APIPrefix: "apis/storage.k8s.io/v1beta1", ShortName: "storagecl", Category: "config/storage/discovery/loadbalancing", Namespace: false, Watch: true,
+	{Name: "storageclasses", APIPrefix: "apis/storage.k8s.io/v1beta1", ShortName: "storagecl", Category: "cluster/metadata", Namespace: false, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -553,7 +553,7 @@ No Data
 			yamlView,
 			jsonView,
 		}},
-	{Name: "poddisruptionbudgets", APIPrefix: "apis/policy/v1beta1", ShortName: "pdb", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "poddisruptionbudgets", APIPrefix: "apis/policy/v1beta1", ShortName: "pdb", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -567,7 +567,7 @@ No Data
 			jsonView,
 		}},
 	//NAME           POD-SELECTOR   AGE
-	{Name: "networkpolicies", APIPrefix: "apis/extensions/v1beta1", ShortName: "netpol", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "networkpolicies", APIPrefix: "apis/extensions/v1beta1", ShortName: "netpol", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -622,7 +622,7 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			yamlView,
 			jsonView,
 		}},
-	{Name: "horizontalpodautoscalers", APIPrefix: "apis/autoscaling/v1", ShortName: "hpa", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "horizontalpodautoscalers", APIPrefix: "apis/autoscaling/v1", ShortName: "hpa", Category: "namespacve/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -637,7 +637,7 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			yamlView,
 			jsonView,
 		}},
-	{Name: "roles", APIPrefix: "apis/rbac.authorization.k8s.io/v1", ShortName: "roles", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "roles", APIPrefix: "apis/rbac.authorization.k8s.io/v1", ShortName: "roles", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -663,7 +663,7 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			yamlView,
 			jsonView,
 		}},
-	{Name: "rolebindings", APIPrefix: "apis/rbac.authorization.k8s.io/v1", ShortName: "rolebindings", Category: "cluster/metadata", Namespace: true, Watch: true,
+	{Name: "rolebindings", APIPrefix: "apis/rbac.authorization.k8s.io/v1", ShortName: "rolebindings", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -792,7 +792,7 @@ func (c *configType) resView(res resourceType, filter func(viewType) bool) (ret 
 }
 
 func (c *configType) allResourceCategories() []string {
-	return []string{"cluster/metadata", "workloads", "config/storage/discovery/loadbalancing"}
+	return []string{"cluster/metadata", "workloads", "config/storage/discovery/loadbalancing", "namespace/metadata"}
 }
 
 func (c *configType) createResources() *configType {

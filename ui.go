@@ -315,6 +315,7 @@ func initGui() {
 
 	bindKeys()
 	if currentState.name != browseState.name {
+		namespaceList.widget.visible = false
 		setState(browseState)
 		if cfg.isNew {
 			setState(helpState)
@@ -523,7 +524,9 @@ func nextResourceCategory(offset int) {
 }
 
 func newResourceCategory() {
-	resourceMenu.widget.title = fmt.Sprintf("[R]esources - %s", resourceCategories[selectedResourceCategoryIndex])
+	resCat := resourceCategories[selectedResourceCategoryIndex]
+	resourceMenu.widget.title = fmt.Sprintf("[R]esources - %s", resCat)
+	namespaceList.widget.visible = resCat != "cluster/metadata"
 
 	resourceMenu.widget.selectedItem = 0
 	resourceMenu.widget.items = resources()

@@ -291,7 +291,9 @@ var previousContextPageCommand = commandType{Name: "Next context", f: func(g *go
 }}
 
 var gotoSelectNamespaceStateCommand = commandType{Name: "Select namespace", f: func(g *gocui.Gui, v *gocui.View) error {
-	setState(selectNsState)
+	if namespaceList.widget.visible {
+		setState(selectNsState)
+	}
 	return nil
 }}
 
