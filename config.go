@@ -95,8 +95,7 @@ var labelsAndAnnoTemplate = `{{ "Labels:" | whiteEmp }}` + mapTemplate(".metadat
 
 {{ "Annotations:" | whiteEmp }}` + mapTemplate(".metadata.annotations")
 
-func eventsTemplate() string {
-	return `
+var eventsTemplate = `
 {{ "Events:" | whiteEmp }}
 {{ $evs := (events .kind .metadata.name) }}
 {{- if $evs }}
@@ -112,7 +111,6 @@ func eventsTemplate() string {
 {{- else -}}
 No data
 {{ end }}`
-}
 
 func mapTemplate(path string) string {
 	return `
@@ -135,6 +133,11 @@ var yamlView = viewType{
 var jsonView = viewType{
 	Name:     "json",
 	Template: `{{- toJSON . -}}`,
+}
+
+var infoView = viewType{
+	Name:     "info",
+	Template: fmt.Sprintf("%s\n%s", labelsAndAnnoTemplate, eventsTemplate),
 }
 
 var defaultResources = []resourceType{
@@ -161,7 +164,7 @@ var defaultResources = []resourceType{
 
 ` + labelsAndAnnoTemplate + `
 
-` + eventsTemplate(),
+` + eventsTemplate,
 			},
 			yamlView,
 			jsonView,
@@ -172,6 +175,7 @@ var defaultResources = []resourceType{
 				Name:     "list",
 				Template: `{{- header "Name" . .metadata.name | printf "%-50.50s " -}}`,
 			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -183,6 +187,7 @@ var defaultResources = []resourceType{
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 {{- header "Secrets" . (fc .secrets "name") | printf "%s " -}}`,
 			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -195,6 +200,7 @@ var defaultResources = []resourceType{
 {{- header "Message" . (fcwe .conditions "status" "True" "message" ) | printf "%-30.30s " -}}
 {{- header "Error" . (fcwe .conditions "status" "True" "error" ) | printf "%s " -}}`,
 			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -210,6 +216,7 @@ var defaultResources = []resourceType{
 {{- header "Claim" . ( printf "%v/%v" .spec.claimRef.namespace .spec.claimRef.name ) | printf "%-30.30s " -}}
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}`,
 			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -224,6 +231,7 @@ var defaultResources = []resourceType{
 {{- header "Reason" . .reason | printf "%-20.20s " -}}
 {{- header "message" . .message | printf "%s" -}}`,
 			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -233,6 +241,7 @@ var defaultResources = []resourceType{
 				Name:     "list",
 				Template: `{{- header "Name" . .metadata.name | printf "%-50.50s " -}}`,
 			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -242,6 +251,7 @@ var defaultResources = []resourceType{
 				Name:     "list",
 				Template: `{{- header "Name" . .metadata.name | printf "%-50.50s " -}}`,
 			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -256,6 +266,7 @@ var defaultResources = []resourceType{
 				Name:     "info",
 				Template: labelsAndAnnoTemplate,
 			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -271,10 +282,7 @@ var defaultResources = []resourceType{
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 {{- header "Selector" . ( printMap .spec.selector) | printf "%s " -}}`,
 			},
-			viewType{
-				Name:     "info",
-				Template: labelsAndAnnoTemplate,
-			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -286,10 +294,7 @@ var defaultResources = []resourceType{
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 {{- header "Data" . ( keys .data) | printf "%s " -}}`,
 			},
-			viewType{
-				Name:     "info",
-				Template: labelsAndAnnoTemplate,
-			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -302,10 +307,7 @@ var defaultResources = []resourceType{
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 {{- header "Data" . ( keys .data) | printf "%s " -}}`,
 			},
-			viewType{
-				Name:     "info",
-				Template: labelsAndAnnoTemplate,
-			},
+			infoView,
 			{
 				Name: "decode",
 				Template: `
@@ -335,6 +337,7 @@ No Data
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 {{- header "Storageclass" . .spec.storageClassName | printf "%s " -}}`,
 			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -363,7 +366,7 @@ No Data
 {{ "Resources:" | whiteEmp }}
 {{ podRes . }}
 
-` + eventsTemplate(),
+` + eventsTemplate,
 			},
 			yamlView,
 			jsonView,
@@ -387,13 +390,7 @@ No Data
 {{- header "Image" . (( ind .spec.template.spec.containers 0).image) | printf "%-20.20s " -}}
 {{- header "Selectors" . ( printMap .spec.selector.matchLabels) | printf "%s" -}}`,
 			},
-			viewType{
-				Name: "info",
-				Template: labelsAndAnnoTemplate + `
-
-` + eventsTemplate(),
-			},
-
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -409,13 +406,7 @@ No Data
 	{{- header "Container" . (( ind .spec.jobTemplate.spec.template.spec.containers 0).name) | printf "%-20.20s " -}}
 	{{- header "Image" . (( ind .spec.jobTemplate.spec.template.spec.containers 0).image) | printf "%-20.20s " -}}`,
 			},
-			viewType{
-				Name: "info",
-				Template: labelsAndAnnoTemplate + `
-	
-	` + eventsTemplate(),
-			},
-
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -432,12 +423,7 @@ No Data
 {{- header "Container" . (( ind .spec.template.spec.containers 0).name) | printf "%-20.20s " -}}
 {{- header "Image" . (( ind .spec.template.spec.containers 0).image) | printf "%-20.20s " -}}`,
 			},
-			viewType{
-				Name: "info",
-				Template: labelsAndAnnoTemplate + `
-
-` + eventsTemplate(),
-			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -454,12 +440,7 @@ No Data
 {{- header "Container" . (( ind .spec.template.spec.containers 0).name) | printf "%-20.20s " -}}
 {{- header "Image" . (( ind .spec.template.spec.containers 0).image) | printf "%s " -}}`,
 			},
-			viewType{
-				Name: "info",
-				Template: labelsAndAnnoTemplate + `
-
-` + eventsTemplate(),
-			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -472,6 +453,7 @@ No Data
 {{- header "Status" . .status.phase | printf "%-12.12s " -}}
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 		   `},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -489,12 +471,7 @@ No Data
 			{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 			{{- header "Selectors" . ( printMap .spec.selector) | printf "%s " -}}
 		   `},
-			viewType{
-				Name: "info",
-				Template: labelsAndAnnoTemplate + `
-
-` + eventsTemplate(),
-			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -511,12 +488,7 @@ No Data
 			{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 			{{- header "Image" . (( ind .spec.template.spec.containers 0).image) | printf "%s " -}}
 			`},
-			viewType{
-				Name: "info",
-				Template: labelsAndAnnoTemplate + `
-
-` + eventsTemplate(),
-			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -532,12 +504,7 @@ No Data
 			{{- header "Image" . (( ind .spec.template.spec.containers 0).image) | printf "%-40.40s " -}}
 			{{- header "Selectors" . ( printMap .spec.selector) | printf "%s " -}}
 			`},
-			viewType{
-				Name: "info",
-				Template: labelsAndAnnoTemplate + `
-
-` + eventsTemplate(),
-			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -550,6 +517,7 @@ No Data
 			{{- header "Type" . .parameters.type | printf "%-20.20s " -}}
 			{{- header "Annotations" . ( printMap .metadata.annotations) | printf "%s " -}}
 			`},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -563,6 +531,7 @@ No Data
 			{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 			{{- header "Selectors" . ( printMap .spec.selector) | printf "%s " -}}
 			`},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -576,8 +545,9 @@ No Data
 			{{- header "Policy-types" . (printArray  .spec.policyTypes ) | printf "%-40.40s " -}}
 			{{- header "Pod-selector" . ( printMap .spec.podSelector) | printf "%s " -}}
 			`},
+			infoView,
 			{
-				Name: "info",
+				Name: "rules",
 				Template: labelsAndAnnoTemplate + `
 {{ "Ingress:" | whiteEmp }}
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -606,7 +576,6 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			yamlView,
 			jsonView,
 		}},
-	//NAME           HOSTS     ADDRESS   PORTS     AGE
 	{Name: "ingresses", APIPrefix: "apis/extensions/v1beta1", ShortName: "ing", Category: "config/storage/discovery/loadbalancing", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
@@ -619,6 +588,7 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 				Name:     "info",
 				Template: labelsAndAnnoTemplate,
 			},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -634,6 +604,7 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			{{- header "Replicas" . .status.currentReplicas | printf "%12.12s " -}}
 			{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 			`},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
@@ -649,10 +620,10 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			{{- header "1stRule-resources" . ( printArray (( ind .rules 0).resources)) | printf "%-30.30s " -}}
 			{{- header "1stRule-verbs" . ( printArray (( ind .rules 0).verbs)) | printf "%-30.30s " -}}
 			`},
+			infoView,
 			{
-				Name: "info",
-				Template: labelsAndAnnoTemplate + `
-{{ "Rules:" | whiteEmp }}
+				Name: "rules",
+				Template: `
 {{ "Resources" | printf "%-90.90s " }} {{ "Verbs" | printf "%-90.90s " }}
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 {{range $rule := .rules}}
@@ -672,9 +643,10 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			{{- header "RoleRef" . .roleRef.name | printf "%-45.45s " -}}
 			{{- header "subjects" . (fc .subjects "name" ) | printf "%s " -}}
 			`},
+			infoView,
 			{
-				Name: "info",
-				Template: labelsAndAnnoTemplate + `
+				Name: "bindings",
+				Template: `
 {{ "Role:" | whiteEmp }} {{ .roleRef.name }}
 {{ "Subjects:" | whiteEmp }} 
 {{"name"  | printf "%-40.40s "}}  {{"kind" | printf "%-40.40s "}}
@@ -699,10 +671,10 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			{{- header "1stRule-resources" . ( printArray (( ind .rules 0).resources)) | printf "%-30.30s " -}}
 			{{- header "1stRule-verbs" . ( printArray (( ind .rules 0).verbs)) | printf "%-30.30s " -}}
 			`},
+			infoView,
 			{
-				Name: "info",
-				Template: labelsAndAnnoTemplate + `
-{{ "Rules:" | whiteEmp }}
+				Name: "rules",
+				Template: `
 {{ "Resources" | printf "%-90.90s " }} {{ "Verbs" | printf "%-90.90s " }}
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 {{range $rule := .rules}}
@@ -722,9 +694,10 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			{{- header "RoleRef" . .roleRef.name | printf "%-45.45s " -}}
 			{{- header "Subjects" . (fc .subjects "name" ) | printf "%s " -}}
 			`},
+			infoView,
 			{
-				Name: "info",
-				Template: labelsAndAnnoTemplate + `
+				Name: "bindings",
+				Template: `
 {{ "Role:" | whiteEmp }} {{ .roleRef.name }}
 {{ "Subjects:" | whiteEmp }} 
 {{"name"  | printf "%-40.40s "}}  {{"kind" | printf "%-40.40s "}}
