@@ -103,7 +103,7 @@ var browseState = stateType{
 		if fromState.name == initState.name {
 			ns := selectedNamespace()
 			selRes := selectedResource()
-			resourceItemsList.widget.title = fmt.Sprintf("%s - Items", selRes.Name)
+			updateResourceItemsListTitle(selRes.Name)
 			ris := backend.resourceItems(ns, selRes)
 			resourceItemsList.widget.items = ris
 			resourceItemsList.widget.template = resourceListTpl(selRes)
@@ -363,10 +363,16 @@ func selectedResourceItemNamespace() string {
 	return ""
 }
 
-func updateResource() {
+func updateResource(reset bool) {
 	tracelog.Printf("update resource")
 	g.Update(func(gui *gocui.Gui) error {
-		newResource()
+		if reset {
+			newResource()
+		} else {
+			res := selectedResource()
+			resourceItemsList.widget.items = backend.resourceItems(selectedNamespace(), res)
+			updateResourceItemsListTitle(res.Name)
+		}
 		return nil
 	})
 }
@@ -536,7 +542,7 @@ func newResourceCategory() {
 	resItems := backend.resourceItems(ns, selRes)
 
 	resourceItemsList.widget.items = resItems
-	resourceItemsList.widget.title = fmt.Sprintf("%s - Items", selRes.Name)
+	updateResourceItemsListTitle(selRes.Name)
 	resourceItemsList.widget.template = resourceListTpl(selRes)
 	if resourceItemsList.widget.selectedItem >= len(resourceItemsList.widget.items) {
 		resourceItemsList.widget.selectedItem = 0
@@ -655,12 +661,23 @@ func newResource() {
 	selNs := selectedNamespace()
 
 	resItems := backend.resourceItems(selNs, selRes)
-
+	updateResourceItemsListTitle(selRes.Name)
 	resourceItemsList.widget.items = resItems
-	resourceItemsList.widget.title = fmt.Sprintf("%s - Items", selRes.Name)
 	resourceItemsList.widget.template = resourceListTpl(selRes)
 	resourceItemsList.widget.selectedPage = 0
 	resourceItemsList.widget.selectedItem = 0
+}
+
+func updateResourceItemsListTitle(resourceItemName string) {
+	var titleTmp string
+	if backend.watches[resourceItemName].online {
+		titleTmp = fmt.Sprintf("  %-30.30s ", resourceItemName)
+		resourceItemsList.widget.tableFgColor = gocui.ColorDefault
+	} else {
+		titleTmp = fmt.Sprintf("  %-30.30s  **OFFLINE**", resourceItemName)
+		resourceItemsList.widget.tableFgColor = gocui.ColorRed
+	}
+	resourceItemsList.widget.title = titleTmp
 }
 
 func setResourceItemDetailsPart() {

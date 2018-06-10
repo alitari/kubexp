@@ -453,6 +453,7 @@ type selWidget struct {
 	selectedPage  int
 	template      *template.Template
 	headerFgColor gocui.Attribute
+	tableFgColor  gocui.Attribute
 	frame         bool
 	focus         bool
 	headerItem    interface{}
@@ -468,6 +469,7 @@ func newSelWidget(name string, x, y, wi, h int) *selWidget {
 	w.w = wi
 	w.h = h
 	w.headerFgColor = gocui.ColorDefault
+	w.tableFgColor = gocui.ColorDefault
 	return w
 }
 
@@ -537,6 +539,7 @@ func (w *selWidget) Layout(g *gocui.Gui) error {
 				}
 			}
 			v.Frame = false
+			v.FgColor = w.tableFgColor
 
 			v.Clear()
 			fmt.Fprint(v, w.render(w.items[i]))
@@ -554,6 +557,7 @@ func (w *selWidget) Layout(g *gocui.Gui) error {
 			}
 		}
 		v.Frame = false
+		v.FgColor = w.tableFgColor
 		v.Clear()
 		fmt.Fprint(v, w.render(w.items[w.selectedItem]))
 	}

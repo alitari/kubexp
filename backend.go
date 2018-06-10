@@ -108,11 +108,16 @@ func (s *timeSorterType) Less(i, j int) bool {
 	return (s.ascending && res) || (!s.ascending && !res)
 }
 
+type watchType struct {
+	reader *io.ReadCloser
+	online bool
+}
+
 type backendType struct {
 	cfg          *configType
 	context      contextType
 	resItems     map[string][]interface{}
-	watches      map[string]*io.ReadCloser
+	watches      map[string]*watchType
 	sorter       sorterType
 	restExecutor func(httpMethod, url, body string, timout time.Duration) (*http.Response, error)
 }
@@ -185,7 +190,7 @@ func (b *backendType) resourceItems(ns string, rt resourceType) []interface{} {
 
 func (b *backendType) createWatches() error {
 	b.resItems = map[string][]interface{}{}
-	b.watches = map[string]*io.ReadCloser{}
+	b.watches = map[string]*watchType{}
 	for _, res := range cfg.resources {
 		if res.Watch {
 			err := b.watch(res.APIPrefix, res.Name)
@@ -203,7 +208,7 @@ func (b *backendType) closeWatches() {
 	if b.watches != nil {
 		for k, v := range b.watches {
 			tracelog.Printf("Close watch %s", k)
-			(*v).Close()
+			(*v.reader).Close()
 		}
 	}
 }
@@ -317,7 +322,7 @@ func (b *backendType) restCallBatch(httpMethod, ress string, ns string, body str
 
 func (b *backendType) watch(apiPrefix string, resName string) error {
 	tracelog.Printf("watching resource : %s", resName)
-	if b.watches[resName] != nil {
+	if _, ok := b.watches[resName]; ok {
 		return fmt.Errorf("duplicate watch of resource: %s ", resName)
 	}
 	url := fmt.Sprintf("%s/%s/watch/%s", b.context.Cluster.URL, apiPrefix, resName)
@@ -334,18 +339,22 @@ func (b *backendType) watch(apiPrefix string, resName string) error {
 			if err != nil {
 				if err.Error() == "EOF" || strings.Contains(err.Error(), "use of closed network connection") {
 					tracelog.Printf("Close watch url %s:\n reason: %v", url, err)
+
 				} else {
 					mess := fmt.Sprintf("Watch error url %s:\n error: %v", url, err)
 					errorlog.Print(mess)
 					showError(mess, err)
 				}
+				b.watches[resName].online = false
+				updateResource(false)
 				break
 			} else {
+				b.watches[resName].online = true
 				b.updateResourceItems(resName, watchBytes)
 			}
 		}
 	}()
-	b.watches[resName] = body
+	b.watches[resName] = &watchType{reader: body, online: false}
 	return nil
 }
 
@@ -382,7 +391,7 @@ func (b *backendType) updateResourceItems(resName string, watchBytes []byte) {
 			selNs := selectedNamespace()
 
 			if currentState.name == "browseState" && selRes.Name == resName && (selNs == "*ALL*" || selNs == resItemNamespace(watchObj)) {
-				updateResource()
+				updateResource(watch["type"] == "DELETED" || watch["type"] == "ADDED")
 			}
 		}
 	} else {
