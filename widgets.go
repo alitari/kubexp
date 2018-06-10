@@ -324,13 +324,6 @@ func (w *textWidget) Layout(g *gocui.Gui) error {
 		w.yOffset = 0
 	}
 
-	cc, err := v.Line(w.yOffset)
-	if err != nil {
-		w.xOffset = 0
-	} else if w.xOffset > len(cc) {
-		w.xOffset = len(cc)
-	}
-
 	if err = v.SetOrigin(w.xOffset, w.yOffset); err != nil {
 		panic(err)
 	}
