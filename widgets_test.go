@@ -183,7 +183,7 @@ func Test_TextWidgetScrollingEmpty(t *testing.T) {
 	layout(t, g, w)
 	ox, oy = v.Origin()
 	require.Equal(0, oy)
-	require.Equal(0, ox)
+	require.Equal(1, ox)
 
 }
 
@@ -244,18 +244,18 @@ func Test_TextWidgetVerticalScrolling(t *testing.T) {
 	layout(t, g, w)
 	ox, oy = v.Origin()
 	require.Equal(0, oy)
-	require.Equal(1, ox)
+	require.Equal(2, ox)
 	w.scrollDown(1)
 	w.scrollRight()
 	layout(t, g, w)
 	ox, oy = v.Origin()
 	require.Equal(1, oy)
-	require.Equal(2, ox)
+	require.Equal(3, ox)
 	w.scrollLeft()
 	layout(t, g, w)
 	ox, oy = v.Origin()
 	require.Equal(1, oy)
-	require.Equal(1, ox)
+	require.Equal(2, ox)
 }
 
 func Test_TextWidgetPosOfFindIdxPanics(t *testing.T) {
