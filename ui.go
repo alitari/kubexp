@@ -210,6 +210,8 @@ var portforwardProxies = map[string][]*portforwardProxy{}
 
 var portforwardStartPort int
 var currentPortforwardPort int
+var restCallTimeout int
+var clusterLivenessPeriod int
 
 var clusterList *nlist
 var clusterResourcesWidget *textWidget
@@ -334,6 +336,9 @@ func parseFlags() {
 	logLevel = flag.String("logLevel", "info", "verbosity of log output. Values: 'trace','info','warn','error'")
 	logFilePath = flag.String("logFile", "./kubexp.log", "fullpath to log file, set empty ( -logFile='') if no logfile should be used")
 	flag.IntVar(&portforwardStartPort, "portForwardStartPort", 32100, "start of portforward range")
+	flag.IntVar(&restCallTimeout, "restCallTimeout", 3, "time out for rest calls in seconds")
+	flag.IntVar(&clusterLivenessPeriod, "clusterLivenessPeriod", 5, "cluster liveness check period in seconds")
+
 	flag.Parse()
 }
 
