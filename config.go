@@ -584,10 +584,6 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			{{- header "Hosts" . (fc .spec.rules "host") | printf "%-40.40s " -}}
 			{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 			`},
-			viewType{
-				Name:     "info",
-				Template: labelsAndAnnoTemplate,
-			},
 			infoView,
 			yamlView,
 			jsonView,
