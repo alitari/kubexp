@@ -588,7 +588,7 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			yamlView,
 			jsonView,
 		}},
-	{Name: "horizontalpodautoscalers", APIPrefix: "apis/autoscaling/v1", ShortName: "hpa", Category: "namespacve/metadata", Namespace: true, Watch: true,
+	{Name: "horizontalpodautoscalers", APIPrefix: "apis/autoscaling/v1", ShortName: "hpa", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -686,9 +686,9 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 			{
 				Name: "list",
 				Template: `{{- header "Name" . .metadata.name | printf "%-50.50s " -}}
-			{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
-			{{- header "RoleRef" . .roleRef.name | printf "%-45.45s " -}}
-			{{- header "Subjects" . (fc .subjects "name" ) | printf "%s " -}}
+{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
+{{- header "RoleRef" . .roleRef.name | printf "%-45.45s " -}}
+{{- header "Subjects" . (fc .subjects "name" ) | printf "%s " -}}
 			`},
 			infoView,
 			{
@@ -703,6 +703,31 @@ ports: {{ printArray $e.ports }}  to: {{ printArray $e.to }}
 {{end}}
 `,
 			},
+			yamlView,
+			jsonView,
+		}},
+	{Name: "customresourcedefinitions", APIPrefix: "apis/apiextensions.k8s.io/v1beta1", ShortName: "customres", Category: "cluster/metadata", Namespace: true, Watch: true,
+		Views: []viewType{
+			{
+				Name: "list",
+				Template: `{{- header "Name" . .metadata.name | printf "%-50.50s " -}}
+{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
+{{- header "Group" . .spec.group | printf "%-20.20s " -}}
+{{- header "Kind" . .spec.names.kind | printf "%-20.20s " -}}
+{{- header "Version" . .spec.version | printf "%-20.20s " -}}
+			`},
+			infoView,
+			yamlView,
+			jsonView,
+		}},
+	{Name: "controllerrevisions", APIPrefix: "apis/apps/v1", ShortName: "ctrlrevisions", Category: "cluster/metadata", Namespace: true, Watch: true,
+		Views: []viewType{
+			{
+				Name: "list",
+				Template: `{{- header "Name" . .metadata.name | printf "%-50.50s " -}}
+{{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
+			`},
+			infoView,
 			yamlView,
 			jsonView,
 		}},
