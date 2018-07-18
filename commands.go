@@ -166,15 +166,22 @@ var execShellCommand0 = newExecCommand("Exec first container sh", "sh", 0)
 var execShellCommand1 = newExecCommand("Exec second container sh", "sh", 1)
 var execShellCommand2 = newExecCommand("Exec third container sh", "sh", 2)
 
-var nextResourceItemDetailPartCommand = commandType{Name: "Next resource", f: func(g *gocui.Gui, v *gocui.View) error {
+var nextResourceItemDetailPartCommand = commandType{Name: "Next detail part", f: func(g *gocui.Gui, v *gocui.View) error {
+	leaveResourceItemDetailsPart()
 	resourcesItemDetailsMenu.widget.nextSelectedItem()
 	setResourceItemDetailsPart()
 	return nil
 }}
 
-var previousResourceItemDetailPartCommand = commandType{Name: "Next resource", f: func(g *gocui.Gui, v *gocui.View) error {
+var previousResourceItemDetailPartCommand = commandType{Name: "Previous detail part", f: func(g *gocui.Gui, v *gocui.View) error {
+	leaveResourceItemDetailsPart()
 	resourcesItemDetailsMenu.widget.previousSelectedItem()
 	setResourceItemDetailsPart()
+	return nil
+}}
+
+var reloadResourceItemDetailPartCommand = commandType{Name: "Reload detail part", f: func(g *gocui.Gui, v *gocui.View) error {
+	reloadResourceItemDetailsPart()
 	return nil
 }}
 

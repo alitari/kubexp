@@ -137,6 +137,7 @@ var detailState = stateType{
 		resourceItemDetailsWidget.visible = false
 		searchmodeWidget.visible = false
 		resourcesItemDetailsMenu.widget.visible = false
+		backend.closePodLogsWatch()
 	},
 }
 
@@ -368,7 +369,15 @@ func selectedResourceItemNamespace() string {
 	return ""
 }
 
-func updateResource(reset bool) {
+func updateResourceItemDetailPart() {
+	//tracelog.Printf("update resource item details")
+	g.Update(func(gui *gocui.Gui) error {
+		reloadResourceItemDetailsPart()
+		return nil
+	})
+}
+
+func updateResourceItemList(reset bool) {
 	tracelog.Printf("update resource")
 	g.Update(func(gui *gocui.Gui) error {
 		if reset {
@@ -685,17 +694,32 @@ func updateResourceItemsListTitle(resourceItemName string) {
 	resourceItemsList.widget.title = titleTmp
 }
 
-func setResourceItemDetailsPart() {
+func leaveResourceItemDetailsPart() {
+	view := selectedResourceItemDetailsView()
+	if view.Name == "logs" {
+		backend.closePodLogsWatch()
+	}
+}
 
+func setResourceItemDetailsPart() {
+	rname := selectedResourceItemName()
+	view := selectedResourceItemDetailsView()
+	resourceItemDetailsWidget.xOffset = 0
+	resourceItemDetailsWidget.yOffset = 0
+	details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
+
+	if view.Name == "logs" {
+		backend.watchPodLogs(resItemNamespace(details), rname, "")
+	}
+	reloadResourceItemDetailsPart()
+
+}
+
+func reloadResourceItemDetailsPart() {
 	res := selectedResource()
 	rname := selectedResourceItemName()
 	view := selectedResourceItemDetailsView()
-
-	resourceItemDetailsWidget.xOffset = 0
-	resourceItemDetailsWidget.yOffset = 0
-
 	details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
-
 	resourceItemDetailsWidget.setContent(details, resourceTpl(res, view))
 	resourceItemDetailsWidget.title = fmt.Sprintf("%s - %s  details ", res.Name, rname)
 }
@@ -813,6 +837,8 @@ func bindKeys() {
 
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowRight, mod: gocui.ModNone}, nextResourceItemDetailPartCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowLeft, mod: gocui.ModNone}, previousResourceItemDetailPartCommand)
+	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeySpace, mod: gocui.ModNone}, reloadResourceItemDetailPartCommand)
+
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, scrollDownCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, scrollUpCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlA, mod: gocui.ModNone}, scrollLeftCommand)

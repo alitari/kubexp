@@ -117,6 +117,7 @@ type backendType struct {
 	cfg                  *configType
 	context              contextType
 	resItems             map[string][]interface{}
+	podLogs              []byte
 	watches              map[string]*watchType
 	sorter               sorterType
 	restExecutor         func(httpMethod, url, body string, timout int) (*http.Response, error)
@@ -213,13 +214,13 @@ func (b *backendType) createWatches() error {
 						w.online = false
 					}
 					errorlog.Printf("cluster heart beat no ok: %v", err)
-					updateResource(false)
+					updateResourceItemList(false)
 				} else {
 					tracelog.Printf("cluster heart beat ok")
 				}
 
 			case <-b.clusterLivenessDone:
-				infolog.Printf("clusterHeartbeatDoneDone")
+				infolog.Printf("clusterHeartbeatDone")
 				return
 			}
 		}
@@ -228,14 +229,22 @@ func (b *backendType) createWatches() error {
 	return nil
 }
 
-func (b *backendType) closeWatches() {
+func (b *backendType) closeWatches0(filter func(string) bool) {
 	tracelog.Printf("close watches %s", b.watches)
 	if b.watches != nil {
 		for k, v := range b.watches {
-			tracelog.Printf("Close watch %s", k)
-			(*v.reader).Close()
+			if filter(k) {
+				tracelog.Printf("Close watch %s", k)
+				(*v.reader).Close()
+			}
 		}
 	}
+}
+
+func (b *backendType) closeWatches() {
+	b.closeWatches0(func(s string) bool {
+		return true
+	})
 	b.clusterLivenessDone <- true
 }
 
@@ -255,20 +264,6 @@ func (b *backendType) delete(ns string, resource resourceType, resourceItem stri
 		return rc, err
 	}
 	return unmarshall(rc), nil
-}
-
-func (b *backendType) readPodLogs(ns, podName, containerName string) (interface{}, error) {
-	logs, err := b.restCall(http.MethodGet, "api/v1", fmt.Sprintf("pods/%s/log?container=%s&tailLines=%v", podName, containerName, 1000), ns, "")
-	if err != nil {
-		return logs, err
-	}
-	logs = strings.Map(func(r rune) rune {
-		if r == 0x1b || r == '\r' {
-			return -1
-		}
-		return r
-	}, logs)
-	return logs, nil
 }
 
 func (b *backendType) scale(ns string, resource resourceType, deploymentName string, scale int) (interface{}, error) {
@@ -346,15 +341,45 @@ func (b *backendType) restCallBatch(httpMethod, ress string, ns string, body str
 	return b.handleResponse(httpMethod, url, body, resp, err)
 }
 
+// GET /api/v1/watch/pods
 func (b *backendType) watch(apiPrefix string, resName string) error {
-	tracelog.Printf("watching resource : %s", resName)
-	if _, ok := b.watches[resName]; ok {
-		return fmt.Errorf("duplicate watch of resource: %s ", resName)
-	}
-	url := fmt.Sprintf("%s/%s/watch/%s", b.context.Cluster.URL, apiPrefix, resName)
+	urlPrefix := fmt.Sprintf("%s/%s/watch", b.context.Cluster.URL, apiPrefix)
+	return b.watch0(urlPrefix, resName, "")
+}
+
+// GET /api/v1/namespaces/{namespace}/pods/{name}/log
+func (b *backendType) watchPodLogs(ns, podName, containerName string) error {
+	b.podLogs = []byte{}
+	urlPrefix := fmt.Sprintf("%s/%s/namespaces/%s", b.context.Cluster.URL, "api/v1", ns)
+	urlPostfix := fmt.Sprintf("pods/%s/log", podName)
+	queryParam := fmt.Sprintf("?tailLines=%v&follow=true", 1000)
+	return b.watch0(urlPrefix, urlPostfix, queryParam)
+
+	// logs, err := b.restCall(http.MethodGet, "api/v1", fmt.Sprintf("pods/%s/log?container=%s&tailLines=%v", podName, containerName, 1000), ns, "")
+	// if err != nil {
+	// 	return logs, err
+	// }
+	// logs = strings.Map(func(r rune) rune {
+	// 	if r == 0x1b || r == '\r' {
+	// 		return -1
+	// 	}
+	// 	return r
+	// }, logs)
+	// return logs, nil
+}
+
+func (b *backendType) closePodLogsWatch() {
+	b.closeWatches0(func(s string) bool {
+		return strings.HasSuffix(s, "log")
+	})
+}
+
+func (b *backendType) watch0(urlPrefix, urlPostfix, queryParam string) error {
+	tracelog.Printf("watching resource : %s", urlPostfix)
+	url := fmt.Sprintf("%s/%s%s", urlPrefix, urlPostfix, queryParam)
 	resp, err := b.restExecutor(http.MethodGet, url, "", -1)
 	if err != nil {
-		errorlog.Printf("error watching resource %s : %v", resName, err)
+		errorlog.Printf("error watching resource %s : %v", urlPostfix, err)
 		return err
 	}
 	body := &resp.Body
@@ -371,17 +396,24 @@ func (b *backendType) watch(apiPrefix string, resName string) error {
 					errorlog.Print(mess)
 					showError(mess, err)
 				}
-				b.watches[resName].online = false
-				updateResource(false)
+				b.watches[urlPostfix].online = false
+				if !strings.HasSuffix(urlPostfix, "log") {
+					updateResourceItemList(false)
+				}
 				break
 			} else {
-				b.watches[resName].online = true
-				b.updateResourceItems(resName, watchBytes)
+				b.watches[urlPostfix].online = true
+				if !strings.HasSuffix(urlPostfix, "log") {
+					b.updateResourceItems(urlPostfix, watchBytes)
+				} else {
+					b.podLogs = append(b.podLogs, watchBytes[:]...)
+					updateResourceItemDetailPart()
+				}
 			}
 		}
 	}()
 
-	b.watches[resName] = &watchType{reader: body, online: false}
+	b.watches[urlPostfix] = &watchType{reader: body, online: false}
 	return nil
 }
 
@@ -418,7 +450,7 @@ func (b *backendType) updateResourceItems(resName string, watchBytes []byte) {
 			selNs := selectedNamespace()
 
 			if currentState.name == "browseState" && selRes.Name == resName && (selNs == "*ALL*" || selNs == resItemNamespace(watchObj)) {
-				updateResource(watch["type"] == "DELETED" || watch["type"] == "ADDED")
+				updateResourceItemList(watch["type"] == "DELETED" || watch["type"] == "ADDED")
 			}
 		}
 	} else {

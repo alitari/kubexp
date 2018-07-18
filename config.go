@@ -373,7 +373,7 @@ No Data
 
 			{
 				Name:     "logs",
-				Template: `{{- podLog .metadata.name ( ind .spec.containers 0).name -}}`,
+				Template: `{{- podLog -}}`,
 			},
 		}},
 	{Name: "jobs", APIPrefix: "apis/batch/v1", ShortName: "jobs", Category: "workloads", Namespace: true, Watch: true,

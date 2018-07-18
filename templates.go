@@ -128,9 +128,9 @@ func decode64(it interface{}) string {
 	return ""
 }
 
-func podLog(podName, containerName string) interface{} {
-	logs, _ := backend.readPodLogs(selectedResourceItemNamespace(), podName, containerName)
-	return logs
+func podLog() interface{} {
+	//infolog.Printf("-->logs: %s", string(backend.podLogs))
+	return string(backend.podLogs)
 }
 
 func podsForNode(nodeName string) interface{} {
