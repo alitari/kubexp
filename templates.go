@@ -128,9 +128,9 @@ func decode64(it interface{}) string {
 	return ""
 }
 
-func podLog(podName, containerName string) interface{} {
-	logs, _ := backend.readPodLogs(selectedResourceItemNamespace(), podName, containerName)
-	return logs
+func podLog() interface{} {
+	//infolog.Printf("-->logs: %s", string(backend.podLogs))
+	return string(backend.podLogs)
 }
 
 func podsForNode(nodeName string) interface{} {
@@ -669,6 +669,11 @@ func resItemName(ri interface{}) string {
 }
 func resItemNamespace(ri interface{}) string {
 	return val1(ri, "{{ .metadata.namespace }}")
+}
+
+func resItemContainers(ri interface{}) []string {
+	contStr := val1(ri, "{{ range .spec.containers -}}{{ .name}},{{ end -}}")
+	return strings.Split(contStr[:len(contStr)-1], ",")
 }
 
 func resItemCreationTimestamp(ri interface{}) string {

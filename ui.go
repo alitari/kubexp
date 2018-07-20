@@ -137,6 +137,7 @@ var detailState = stateType{
 		resourceItemDetailsWidget.visible = false
 		searchmodeWidget.visible = false
 		resourcesItemDetailsMenu.widget.visible = false
+		backend.closePodLogsWatch()
 	},
 }
 
@@ -237,6 +238,10 @@ var cfg *configType
 var backend *backendType
 
 var resourceCategories []string
+
+var containerNames []string
+var selectedContainerIndex int
+
 var g *gocui.Gui
 
 var logLevel *string
@@ -368,7 +373,15 @@ func selectedResourceItemNamespace() string {
 	return ""
 }
 
-func updateResource(reset bool) {
+func updateResourceItemDetailPart() {
+	//tracelog.Printf("update resource item details")
+	g.Update(func(gui *gocui.Gui) error {
+		reloadResourceItemDetailsPart()
+		return nil
+	})
+}
+
+func updateResourceItemList(reset bool) {
 	tracelog.Printf("update resource")
 	g.Update(func(gui *gocui.Gui) error {
 		if reset {
@@ -685,19 +698,54 @@ func updateResourceItemsListTitle(resourceItemName string) {
 	resourceItemsList.widget.title = titleTmp
 }
 
-func setResourceItemDetailsPart() {
+func leaveResourceItemDetailsPart() {
+	view := selectedResourceItemDetailsView()
+	if view.Name == "logs" {
+		backend.closePodLogsWatch()
+		selectedContainerIndex = 0
+	}
+}
 
+func nextContainer() {
+	l := len(containerNames)
+	if l <= 0 || selectedResourceItemDetailsView().Name != "logs" {
+		return
+	}
+	if selectedContainerIndex < l-1 {
+		selectedContainerIndex = selectedContainerIndex + 1
+	} else {
+		selectedContainerIndex = 0
+	}
+	backend.closePodLogsWatch()
+	setResourceItemDetailsPart()
+}
+
+func setResourceItemDetailsPart() {
+	rname := selectedResourceItemName()
+	view := selectedResourceItemDetailsView()
+	resourceItemDetailsWidget.xOffset = 0
+	resourceItemDetailsWidget.yOffset = 0
+	details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
+
+	if view.Name == "logs" {
+		containerNames = resItemContainers(details)
+		backend.watchPodLogs(resItemNamespace(details), rname, containerNames[selectedContainerIndex])
+		tracelog.Printf("containerNames: %v", containerNames)
+	}
+	reloadResourceItemDetailsPart()
+}
+
+func reloadResourceItemDetailsPart() {
 	res := selectedResource()
 	rname := selectedResourceItemName()
 	view := selectedResourceItemDetailsView()
-
-	resourceItemDetailsWidget.xOffset = 0
-	resourceItemDetailsWidget.yOffset = 0
-
 	details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
-
 	resourceItemDetailsWidget.setContent(details, resourceTpl(res, view))
-	resourceItemDetailsWidget.title = fmt.Sprintf("%s - %s  details ", res.Name, rname)
+	if view.Name == "logs" {
+		resourceItemDetailsWidget.title = fmt.Sprintf("%s - %s  details, container: %s ", res.Name, rname, containerNames[selectedContainerIndex])
+	} else {
+		resourceItemDetailsWidget.title = fmt.Sprintf("%s - %s  details ", res.Name, rname)
+	}
 }
 
 func toggleDetailBrowseState() {
@@ -813,6 +861,10 @@ func bindKeys() {
 
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowRight, mod: gocui.ModNone}, nextResourceItemDetailPartCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowLeft, mod: gocui.ModNone}, previousResourceItemDetailPartCommand)
+	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeySpace, mod: gocui.ModNone}, reloadResourceItemDetailPartCommand)
+
+	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlO, mod: gocui.ModNone}, nextContainerCommand)
+
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, scrollDownCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, scrollUpCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlA, mod: gocui.ModNone}, scrollLeftCommand)
