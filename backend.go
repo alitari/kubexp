@@ -352,20 +352,8 @@ func (b *backendType) watchPodLogs(ns, podName, containerName string) error {
 	b.podLogs = []byte{}
 	urlPrefix := fmt.Sprintf("%s/%s/namespaces/%s", b.context.Cluster.URL, "api/v1", ns)
 	urlPostfix := fmt.Sprintf("pods/%s/log", podName)
-	queryParam := fmt.Sprintf("?tailLines=%v&follow=true", 1000)
+	queryParam := fmt.Sprintf("?tailLines=%v&follow=true&container=%s", 1000, containerName)
 	return b.watch0(urlPrefix, urlPostfix, queryParam)
-
-	// logs, err := b.restCall(http.MethodGet, "api/v1", fmt.Sprintf("pods/%s/log?container=%s&tailLines=%v", podName, containerName, 1000), ns, "")
-	// if err != nil {
-	// 	return logs, err
-	// }
-	// logs = strings.Map(func(r rune) rune {
-	// 	if r == 0x1b || r == '\r' {
-	// 		return -1
-	// 	}
-	// 	return r
-	// }, logs)
-	// return logs, nil
 }
 
 func (b *backendType) closePodLogsWatch() {

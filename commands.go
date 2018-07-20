@@ -347,6 +347,11 @@ var previousResourceCategoryCommand = commandType{Name: "Next resource category"
 	return nil
 }}
 
+var nextContainerCommand = commandType{Name: "Pod logs: Next container ", f: func(g *gocui.Gui, v *gocui.View) error {
+	nextContainer()
+	return nil
+}}
+
 var showHelpCommand = commandType{Name: "Show help", f: func(g *gocui.Gui, v *gocui.View) error {
 	setState(helpState)
 	return nil

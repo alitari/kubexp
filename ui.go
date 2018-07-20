@@ -238,6 +238,10 @@ var cfg *configType
 var backend *backendType
 
 var resourceCategories []string
+
+var containerNames []string
+var selectedContainerIndex int
+
 var g *gocui.Gui
 
 var logLevel *string
@@ -698,7 +702,22 @@ func leaveResourceItemDetailsPart() {
 	view := selectedResourceItemDetailsView()
 	if view.Name == "logs" {
 		backend.closePodLogsWatch()
+		selectedContainerIndex = 0
 	}
+}
+
+func nextContainer() {
+	l := len(containerNames)
+	if l <= 0 || selectedResourceItemDetailsView().Name != "logs" {
+		return
+	}
+	if selectedContainerIndex < l-1 {
+		selectedContainerIndex = selectedContainerIndex + 1
+	} else {
+		selectedContainerIndex = 0
+	}
+	backend.closePodLogsWatch()
+	setResourceItemDetailsPart()
 }
 
 func setResourceItemDetailsPart() {
@@ -709,10 +728,11 @@ func setResourceItemDetailsPart() {
 	details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
 
 	if view.Name == "logs" {
-		backend.watchPodLogs(resItemNamespace(details), rname, "")
+		containerNames = resItemContainers(details)
+		backend.watchPodLogs(resItemNamespace(details), rname, containerNames[selectedContainerIndex])
+		tracelog.Printf("containerNames: %v", containerNames)
 	}
 	reloadResourceItemDetailsPart()
-
 }
 
 func reloadResourceItemDetailsPart() {
@@ -721,7 +741,11 @@ func reloadResourceItemDetailsPart() {
 	view := selectedResourceItemDetailsView()
 	details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
 	resourceItemDetailsWidget.setContent(details, resourceTpl(res, view))
-	resourceItemDetailsWidget.title = fmt.Sprintf("%s - %s  details ", res.Name, rname)
+	if view.Name == "logs" {
+		resourceItemDetailsWidget.title = fmt.Sprintf("%s - %s  details, container: %s ", res.Name, rname, containerNames[selectedContainerIndex])
+	} else {
+		resourceItemDetailsWidget.title = fmt.Sprintf("%s - %s  details ", res.Name, rname)
+	}
 }
 
 func toggleDetailBrowseState() {
@@ -838,6 +862,8 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowRight, mod: gocui.ModNone}, nextResourceItemDetailPartCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowLeft, mod: gocui.ModNone}, previousResourceItemDetailPartCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeySpace, mod: gocui.ModNone}, reloadResourceItemDetailPartCommand)
+
+	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: 'o', mod: gocui.ModNone}, nextContainerCommand)
 
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, scrollDownCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, scrollUpCommand)

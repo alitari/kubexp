@@ -671,6 +671,11 @@ func resItemNamespace(ri interface{}) string {
 	return val1(ri, "{{ .metadata.namespace }}")
 }
 
+func resItemContainers(ri interface{}) []string {
+	contStr := val1(ri, "{{ range .spec.containers -}}{{ .name}},{{ end -}}")
+	return strings.Split(contStr[:len(contStr)-1], ",")
+}
+
 func resItemCreationTimestamp(ri interface{}) string {
 	return val1(ri, "{{ .metadata.creationTimestamp }}")
 }
