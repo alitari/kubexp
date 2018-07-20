@@ -863,7 +863,7 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowLeft, mod: gocui.ModNone}, previousResourceItemDetailPartCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeySpace, mod: gocui.ModNone}, reloadResourceItemDetailPartCommand)
 
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: 'o', mod: gocui.ModNone}, nextContainerCommand)
+	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlO, mod: gocui.ModNone}, nextContainerCommand)
 
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, scrollDownCommand)
 	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, scrollUpCommand)
