@@ -156,15 +156,13 @@ var defaultResources = []resourceType{
 {{- header "Status" . (fcwe .status.conditions "status" "True" "type") | printf "%-8.8s " -}}
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 {{- header "Version" . .status.nodeInfo.kubeletVersion | printf "%-10.10s " -}}
-{{- header "Internal-IP" . ( fcwe .status.addresses "type" "InternalIP" "address") | printf "%-12.12s " -}}
+{{- header "Internal-IP" . ( fcwe .status.addresses "type" "InternalIP" "address") | printf "%-18.18s " -}}
 {{- header "OS Image" . .status.nodeInfo.osImage | printf "%-25.25s " -}}
 {{- header "Kernel Version" . .status.nodeInfo.kernelVersion | printf "%s " -}}`,
 			},
 			viewType{
 				Name: "info",
 				Template: `
-
-
 {{ "Resources:" | whiteEmp }}
 {{ nodeRes . }}
 
@@ -277,8 +275,8 @@ var defaultResources = []resourceType{
 			{
 				Name: "list",
 				Template: nameAgeColumns + `
-{{- header "Cluster IP" . .spec.clusterIP | printf "%-20.20s " -}}
-{{- header "External IP" . (printArray .spec.externalIPs) | printf "%-20.20s " -}}
+{{- header "Cluster IP" . .spec.clusterIP | printf "%-18.18s " -}}
+{{- header "External IP" . (printArray .spec.externalIPs) | printf "%-18.18s " -}}
 {{- header "Ports" . (fc .spec.ports "port") | printf "%-15.15s " -}}
 {{- header "TargetPorts" . (fc .spec.ports "targetPort") | printf "%-15.15s " -}}
 {{- header "Selector" . ( printMap .spec.selector) | printf "%s " -}}`,
