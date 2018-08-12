@@ -96,7 +96,6 @@ var templateFuncMap = template.FuncMap{
 	"contextColor":    colorContext,
 	"contextColorEmp": colorContextEmp,
 	"colorPhase":      colorPhase,
-	//"colorDesiredCount" : colorDesiredCount,
 }
 
 func header(header string, rootVal, val interface{}) interface{} {
@@ -137,7 +136,7 @@ func podsForNode(nodeName string) interface{} {
 	podType := cfg.resourcesOfName("pods")
 	pods := backend.resourceItems("", podType)
 	result := filterArrayOnTpl(pods, "{{ spec.nodeName }}", nodeName)
-	tracelog.Printf("found %v pods ", len(result.([]interface{})))
+	tracelog.Printf("found %v pods ", len(result))
 	return result
 }
 
@@ -574,6 +573,9 @@ func status(desired, ready interface{}) string {
 
 func fromChildrenWhenEquals(it interface{}, equalsKey, equalsValue, returnValueKey string) string {
 	fil := filterArrayOnTpl(it, fmt.Sprintf("{{ .%s }}", equalsKey), equalsValue)
+	if len(fil) <= 0 {
+		return ""
+	}
 	val := val1(fil, fmt.Sprintf("{{ (index . 0).%s }}", returnValueKey))
 	return val
 }
@@ -690,7 +692,7 @@ func val1(node interface{}, path string) string {
 	return err.Error()
 }
 
-func filterArrayOnTpl(it interface{}, tmpl, equals string) interface{} {
+func filterArrayOnTpl(it interface{}, tmpl, equals string) []interface{} {
 	r := make([]interface{}, 0)
 	switch it.(type) {
 	case []interface{}:
