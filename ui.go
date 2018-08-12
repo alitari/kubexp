@@ -833,6 +833,7 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousLineCommand)
 
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'c', mod: gocui.ModNone}, gotoSelectContextStateCommand)
+	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeySpace, mod: gocui.ModNone}, loadContextCommand)
 	// bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'C', mod: gocui.ModNone}, previousContextCommand)
 	// bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'f', mod: gocui.ModNone}, nextNamespaceCommand)
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'n', mod: gocui.ModNone}, gotoSelectNamespaceStateCommand)
@@ -885,7 +886,7 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextNamespacePageCommand)
 	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousNamespacePageCommand)
 
-	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, selectContextLoadingCommand)
+	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, loadContextCommand)
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousContextCommand)
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextContextCommand)
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextContextPageCommand)
