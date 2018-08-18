@@ -363,8 +363,11 @@ var quitWidgetCommand = commandType{Name: "quit", f: func(g *gocui.Gui, v *gocui
 }}
 
 var uploadFileCommand = commandType{Name: "Upload file", f: func(g *gocui.Gui, v *gocui.View) error {
-	fileBrowser = &localFileBrowser{}
-	setState(fileState)
+	if selectedResource().Name == "pods" {
+		fileBrowser = &localFileBrowser{podContext: selectedResourceItemName(), currentDir: "."}
+		fileList.widget.title = fileBrowser.getContext()
+		setState(fileState)
+	}
 	return nil
 }}
 
@@ -394,8 +397,13 @@ var gotoFileCommand = commandType{Name: "Transfer file", f: func(g *gocui.Gui, v
 	tracelog.Printf("selected file:'%s'", filename)
 	if fileBrowser.isDirectory(filename) {
 		fileList.widget.items = fileBrowser.getFileList(filename)
+		fileList.widget.title = fileBrowser.getContext()
 	} else {
-		infolog.Printf("file to transfer:'%s'", filename)
+		filepath := fileBrowser.getPath(filename)
+		switch fileBrowser.(type) {
+		case *localFileBrowser:
+			uploadFile(filepath)
+		}
 		setState(browseState)
 	}
 

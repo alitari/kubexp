@@ -1,6 +1,7 @@
 package kubexp
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -47,10 +48,25 @@ type stateType struct {
 type fileBrowserType interface {
 	getFileList(filename string) []interface{}
 	isDirectory(filename string) bool
+	getContext() string
+	getPath(filename string) string
 }
 
 type localFileBrowser struct {
 	currentDir string
+	podContext string
+}
+
+func (f *localFileBrowser) getPath(filename string) string {
+	return filepath.Join(f.currentDir, filename)
+}
+
+func (f *localFileBrowser) getContext() string {
+	fp, _ := filepath.Abs(f.currentDir)
+	if len(fp) > 30 {
+		fp = "..." + fp[len(fp)-30:]
+	}
+	return fmt.Sprintf("File upload to %s, Dir: %-35.35s", f.podContext, fp)
 }
 
 func (f *localFileBrowser) getFileList(filename string) []interface{} {
@@ -518,9 +534,8 @@ func createWidgets() {
 
 	loadingWidget = newTextWidget("loading", "", false, false, 30, 10, maxX-60, 4)
 
-	fileList = newNlist("files", maxX/2-32, 5, 64, maxY-10)
+	fileList = newNlist("files", maxX/2-50, 5, 100, maxY-10)
 	fileList.widget.expandable = false
-	fileList.widget.title = "Files"
 	fileList.widget.visible = false
 	fileList.widget.frame = true
 	fileList.widget.template = tpl("files", `{{ .mode | printf "%-12.12s" }}{{ .size | printf "%10d" }}  {{ .time | printf "%-16.16s" }}  {{ .name | printf "%-40.40s" }}`)
@@ -652,6 +667,25 @@ func updateKubectlContext() {
 		return
 	}
 	infolog.Printf("kubectl: %s", out)
+}
+
+func uploadFile(filePath string) {
+	podName := selectedResourceItemName()
+	ns := selectedResourceItemNamespace()
+
+	cmd := kubectl("-n", ns, "cp", filePath, podName+":/"+filepath.Base(filePath))
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	if err != nil {
+		fullmess := fmt.Sprintf("Problem uploading file '%s' to pod '%s' in namespace '%s'\n details: %s", filepath.Base(filePath), podName, ns, fmt.Sprintf(fmt.Sprint(err)+": %s ", stderr.String()))
+		errorlog.Print(fullmess)
+		showError(fullmess, err)
+		return
+	}
+	infolog.Printf("uploaded file:'%s' to pod '%s' in namespace '%s'", filePath, podName, ns)
 }
 
 func strToColor(colorStr string) gocui.Attribute {

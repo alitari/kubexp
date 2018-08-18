@@ -61,5 +61,6 @@ func (p *portforwardProxy) stop() error {
 
 func kubectl(a1 string, a ...string) *exec.Cmd {
 	full := append([]string{a1}, a[:]...)
+	tracelog.Printf("kubectl %v", full)
 	return execCommand("kubectl", full...)
 }
