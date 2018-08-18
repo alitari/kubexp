@@ -44,6 +44,41 @@ type stateType struct {
 	exitFunc  func(toState stateType)
 }
 
+type fileBrowserType interface {
+	getFileList(filename string) []interface{}
+	isDirectory(filename string) bool
+}
+
+type localFileBrowser struct {
+	currentDir string
+}
+
+func (f *localFileBrowser) getFileList(filename string) []interface{} {
+	f.currentDir = filepath.Join(f.currentDir, filename)
+	fileList := []interface{}{map[string]interface{}{"name": "..", "mode": "", "size": 0, "time": ""}}
+	files, err := ioutil.ReadDir(f.currentDir)
+	if err != nil {
+		fatalStderrlog.Fatal(err)
+	}
+
+	for _, f := range files {
+		timef := f.ModTime().Format(time.RFC3339)
+		fileList = append(fileList, map[string]interface{}{"name": f.Name(), "mode": f.Mode().String(), "size": f.Size(), "time": timef})
+	}
+	return fileList
+}
+
+func (f *localFileBrowser) isDirectory(filename string) bool {
+	fi, err := os.Stat(filepath.Join(f.currentDir, filename))
+	if err != nil {
+		fatalStderrlog.Fatal(err)
+		return false
+	}
+	return fi.Mode().IsDir()
+}
+
+var fileBrowser fileBrowserType
+
 var contextColorFunc = func(item interface{}) gocui.Attribute {
 	context := cfg.contexts[clusterList.widget.selectedItem]
 	return strToColor(context.color)
@@ -153,6 +188,21 @@ var helpState = stateType{
 		helpWidget.visible = false
 	},
 }
+
+var fileState = stateType{
+	name: "fileState",
+	enterFunc: func(fromState stateType) {
+		fileList.widget.visible = true
+		fileList.widget.focus = true
+		fileList.widget.items = fileBrowser.getFileList(".")
+
+	},
+	exitFunc: func(fromState stateType) {
+		fileList.widget.visible = false
+		fileList.widget.focus = false
+	},
+}
+
 var execPodState = stateType{
 	name: "execPodState",
 	enterFunc: func(fromState stateType) {
@@ -228,6 +278,7 @@ var execWidget *shellWidget
 var errorWidget *textWidget
 var confirmWidget *textWidget
 var loadingWidget *textWidget
+var fileList *nlist
 
 var selectedResourceCategoryIndex = 0
 var selectedClusterInfoIndex = 0
@@ -318,7 +369,7 @@ func initGui() {
 	if currentState.name != browseState.name {
 		createWidgets()
 	}
-	g.SetManager(clusterList.widget, clusterResourcesWidget, namespaceList.widget, resourceMenu.widget, resourcesItemDetailsMenu.widget, searchmodeWidget, resourceItemsList.widget, resourceItemDetailsWidget, helpWidget, errorWidget, execWidget, confirmWidget, loadingWidget)
+	g.SetManager(clusterList.widget, clusterResourcesWidget, namespaceList.widget, resourceMenu.widget, resourcesItemDetailsMenu.widget, searchmodeWidget, resourceItemsList.widget, resourceItemDetailsWidget, helpWidget, errorWidget, execWidget, confirmWidget, loadingWidget, fileList.widget)
 
 	bindKeys()
 	if currentState.name != browseState.name {
@@ -466,6 +517,14 @@ func createWidgets() {
 	confirmWidget = newTextWidget("confirm", "Confirm", false, false, 20, 7, maxX-40, 4)
 
 	loadingWidget = newTextWidget("loading", "", false, false, 30, 10, maxX-60, 4)
+
+	fileList = newNlist("files", maxX/2-32, 5, 64, maxY-10)
+	fileList.widget.expandable = false
+	fileList.widget.title = "Files"
+	fileList.widget.visible = false
+	fileList.widget.frame = true
+	fileList.widget.template = tpl("files", `{{ .mode | printf "%-12.12s" }}{{ .size | printf "%10d" }}  {{ .time | printf "%-16.16s" }}  {{ .name | printf "%-40.40s" }}`)
+	// fileList.widget.items = []interface{}{map[string]interface{}{"name": "file1"}}
 
 }
 
@@ -891,6 +950,13 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextContextCommand)
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextContextPageCommand)
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousContextPageCommand)
+
+	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'u', mod: gocui.ModNone}, uploadFileCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, gotoFileCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousFileCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextFileCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextFilePageCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousFilePageCommand)
 
 }
 

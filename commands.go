@@ -362,6 +362,46 @@ var quitWidgetCommand = commandType{Name: "quit", f: func(g *gocui.Gui, v *gocui
 	return nil
 }}
 
+var uploadFileCommand = commandType{Name: "Upload file", f: func(g *gocui.Gui, v *gocui.View) error {
+	fileBrowser = &localFileBrowser{}
+	setState(fileState)
+	return nil
+}}
+
+var nextFileCommand = commandType{Name: "Next File", f: func(g *gocui.Gui, v *gocui.View) error {
+	fileList.widget.nextSelectedItem()
+	return nil
+}}
+
+var previousFileCommand = commandType{Name: "Previous File", f: func(g *gocui.Gui, v *gocui.View) error {
+	fileList.widget.previousSelectedItem()
+	return nil
+}}
+
+var nextFilePageCommand = commandType{Name: "Next File", f: func(g *gocui.Gui, v *gocui.View) error {
+	fileList.widget.nextPage()
+	return nil
+}}
+
+var previousFilePageCommand = commandType{Name: "Previous File", f: func(g *gocui.Gui, v *gocui.View) error {
+	fileList.widget.previousPage()
+	return nil
+}}
+
+var gotoFileCommand = commandType{Name: "Transfer file", f: func(g *gocui.Gui, v *gocui.View) error {
+	item := fileList.widget.items[fileList.widget.selectedItem]
+	filename := item.(map[string]interface{})["name"].(string)
+	tracelog.Printf("selected file:'%s'", filename)
+	if fileBrowser.isDirectory(filename) {
+		fileList.widget.items = fileBrowser.getFileList(filename)
+	} else {
+		infolog.Printf("file to transfer:'%s'", filename)
+		setState(browseState)
+	}
+
+	return nil
+}}
+
 func bindKey(g *gocui.Gui, keyBind keyEventType, command commandType) {
 	if err := g.SetKeybinding(keyBind.Viewname, keyBind.Key, keyBind.mod, command.f); err != nil {
 		errorlog.Panicln(err)
