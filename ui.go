@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -43,54 +44,6 @@ type stateType struct {
 	name      string
 	enterFunc func(fromState stateType)
 	exitFunc  func(toState stateType)
-}
-
-type fileBrowserType interface {
-	getFileList(filename string) []interface{}
-	isDirectory(filename string) bool
-	getContext() string
-	getPath(filename string) string
-}
-
-type localFileBrowser struct {
-	currentDir string
-	podContext string
-}
-
-func (f *localFileBrowser) getPath(filename string) string {
-	return filepath.Join(f.currentDir, filename)
-}
-
-func (f *localFileBrowser) getContext() string {
-	fp, _ := filepath.Abs(f.currentDir)
-	if len(fp) > 30 {
-		fp = "..." + fp[len(fp)-30:]
-	}
-	return fmt.Sprintf("File upload to %s, Dir: %-35.35s", f.podContext, fp)
-}
-
-func (f *localFileBrowser) getFileList(filename string) []interface{} {
-	f.currentDir = filepath.Join(f.currentDir, filename)
-	fileList := []interface{}{map[string]interface{}{"name": "..", "mode": "", "size": 0, "time": ""}}
-	files, err := ioutil.ReadDir(f.currentDir)
-	if err != nil {
-		fatalStderrlog.Fatal(err)
-	}
-
-	for _, f := range files {
-		timef := f.ModTime().Format(time.RFC3339)
-		fileList = append(fileList, map[string]interface{}{"name": f.Name(), "mode": f.Mode().String(), "size": f.Size(), "time": timef})
-	}
-	return fileList
-}
-
-func (f *localFileBrowser) isDirectory(filename string) bool {
-	fi, err := os.Stat(filepath.Join(f.currentDir, filename))
-	if err != nil {
-		fatalStderrlog.Fatal(err)
-		return false
-	}
-	return fi.Mode().IsDir()
 }
 
 var fileBrowser fileBrowserType
@@ -210,8 +163,6 @@ var fileState = stateType{
 	enterFunc: func(fromState stateType) {
 		fileList.widget.visible = true
 		fileList.widget.focus = true
-		fileList.widget.items = fileBrowser.getFileList(".")
-
 	},
 	exitFunc: func(fromState stateType) {
 		fileList.widget.visible = false
@@ -308,6 +259,8 @@ var resourceCategories []string
 
 var containerNames []string
 var selectedContainerIndex int
+
+var sourceFile string
 
 var g *gocui.Gui
 
@@ -669,23 +622,32 @@ func updateKubectlContext() {
 	infolog.Printf("kubectl: %s", out)
 }
 
-func uploadFile(filePath string) {
+func transferFile(destPath string) {
 	podName := selectedResourceItemName()
 	ns := selectedResourceItemNamespace()
 
-	cmd := kubectl("-n", ns, "cp", filePath, podName+":/"+filepath.Base(filePath))
+	var cmd *exec.Cmd
+	var mess string
+	switch fileBrowser.(type) {
+	case *localFileBrowser:
+		cmd = kubectl("-n", ns, "cp", podName+":"+sourceFile, destPath)
+		mess = fmt.Sprintf("file download:'%s' in pod '%s' from namespace '%s' to local dir '%s' ", sourceFile, podName, ns, destPath)
+	case *podFileBrowser:
+		cmd = kubectl("-n", ns, "cp", sourceFile, podName+":"+path.Join(destPath, path.Base(sourceFile)))
+		mess = fmt.Sprintf("file upload:'%s' to '%s' in pod '%s' in namespace '%s'", sourceFile, destPath, podName, ns)
+	}
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 	err := cmd.Run()
 	if err != nil {
-		fullmess := fmt.Sprintf("Problem uploading file '%s' to pod '%s' in namespace '%s'\n details: %s", filepath.Base(filePath), podName, ns, fmt.Sprintf(fmt.Sprint(err)+": %s ", stderr.String()))
+		fullmess := fmt.Sprintf("Problem: %s \n details: %s", mess, fmt.Sprintf(fmt.Sprint(err)+": %s ", stderr.String()))
 		errorlog.Print(fullmess)
 		showError(fullmess, err)
 		return
 	}
-	infolog.Printf("uploaded file:'%s' to pod '%s' in namespace '%s'", filePath, podName, ns)
+	infolog.Print(mess + " succeeded!")
 }
 
 func strToColor(colorStr string) gocui.Attribute {
@@ -986,11 +948,13 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousContextPageCommand)
 
 	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'u', mod: gocui.ModNone}, uploadFileCommand)
+	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'd', mod: gocui.ModNone}, downloadFileCommand)
 	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, gotoFileCommand)
 	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousFileCommand)
 	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextFileCommand)
 	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextFilePageCommand)
 	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousFilePageCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyCtrlC, mod: gocui.ModNone}, quitWidgetCommand)
 
 }
 

@@ -364,8 +364,21 @@ var quitWidgetCommand = commandType{Name: "quit", f: func(g *gocui.Gui, v *gocui
 
 var uploadFileCommand = commandType{Name: "Upload file", f: func(g *gocui.Gui, v *gocui.View) error {
 	if selectedResource().Name == "pods" {
-		fileBrowser = &localFileBrowser{podContext: selectedResourceItemName(), currentDir: "."}
+		fileBrowser = &localFileBrowser{podContext: selectedResourceItemName(), currentDir: ".", sourceSelection: true}
 		fileList.widget.title = fileBrowser.getContext()
+		fileList.widget.items = fileBrowser.getFileList("")
+		setState(fileState)
+	}
+	return nil
+}}
+
+var downloadFileCommand = commandType{Name: "Download file", f: func(g *gocui.Gui, v *gocui.View) error {
+	if selectedResource().Name == "pods" {
+		podName := selectedResourceItemName()
+		ns := selectedResourceItemNamespace()
+		fileBrowser = &podFileBrowser{namespace: ns, podName: podName, currentDir: "/", sourceSelection: true}
+		fileList.widget.title = fileBrowser.getContext()
+		fileList.widget.items = fileBrowser.getFileList("")
 		setState(fileState)
 	}
 	return nil
@@ -392,19 +405,36 @@ var previousFilePageCommand = commandType{Name: "Previous File", f: func(g *gocu
 }}
 
 var gotoFileCommand = commandType{Name: "Transfer file", f: func(g *gocui.Gui, v *gocui.View) error {
-	item := fileList.widget.items[fileList.widget.selectedItem]
-	filename := item.(map[string]interface{})["name"].(string)
-	tracelog.Printf("selected file:'%s'", filename)
-	if fileBrowser.isDirectory(filename) {
-		fileList.widget.items = fileBrowser.getFileList(filename)
-		fileList.widget.title = fileBrowser.getContext()
-	} else {
-		filepath := fileBrowser.getPath(filename)
-		switch fileBrowser.(type) {
-		case *localFileBrowser:
-			uploadFile(filepath)
+	fileItem := fileList.widget.items[fileList.widget.selectedItem].(map[string]interface{})
+	//filename := item["name"].(string)
+	tracelog.Printf("selected file:'%v'", fileItem)
+	if fileBrowser.isSourceSelection() {
+		if fileItem["dir"].(bool) {
+			fileList.widget.items = fileBrowser.getFileList(fileItem["name"].(string))
+			fileList.widget.title = fileBrowser.getContext()
+		} else {
+			sourceFile = fileBrowser.getPath(fileItem["name"].(string))
+			switch fileBrowser.(type) {
+			case *localFileBrowser:
+				podName := selectedResourceItemName()
+				ns := selectedResourceItemNamespace()
+				fileBrowser = &podFileBrowser{namespace: ns, podName: podName, currentDir: "/", sourceSelection: false}
+				fileList.widget.title = fileBrowser.getContext()
+				fileList.widget.items = fileBrowser.getFileList("")
+			case *podFileBrowser:
+				fileBrowser = &localFileBrowser{podContext: selectedResourceItemName(), currentDir: ".", sourceSelection: false}
+				fileList.widget.title = fileBrowser.getContext()
+				fileList.widget.items = fileBrowser.getFileList("")
+			}
 		}
-		setState(browseState)
+	} else {
+		if fileItem["dir"].(bool) {
+			fileList.widget.items = fileBrowser.getFileList(fileItem["name"].(string))
+			fileList.widget.title = fileBrowser.getContext()
+		} else {
+			transferFile(fileBrowser.getPath(""))
+			setState(browseState)
+		}
 	}
 
 	return nil
