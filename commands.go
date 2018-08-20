@@ -363,24 +363,12 @@ var quitWidgetCommand = commandType{Name: "quit", f: func(g *gocui.Gui, v *gocui
 }}
 
 var uploadFileCommand = commandType{Name: "Upload file", f: func(g *gocui.Gui, v *gocui.View) error {
-	if selectedResource().Name == "pods" {
-		fileBrowser = &localFileBrowser{podContext: selectedResourceItemName(), currentDir: ".", sourceSelection: true}
-		fileList.widget.title = fileBrowser.getContext()
-		fileList.widget.items = fileBrowser.getFileList("")
-		setState(fileState)
-	}
+	startFiletransfer(true)
 	return nil
 }}
 
 var downloadFileCommand = commandType{Name: "Download file", f: func(g *gocui.Gui, v *gocui.View) error {
-	if selectedResource().Name == "pods" {
-		podName := selectedResourceItemName()
-		ns := selectedResourceItemNamespace()
-		fileBrowser = &podFileBrowser{namespace: ns, podName: podName, currentDir: "/", sourceSelection: true}
-		fileList.widget.title = fileBrowser.getContext()
-		fileList.widget.items = fileBrowser.getFileList("")
-		setState(fileState)
-	}
+	startFiletransfer(false)
 	return nil
 }}
 
@@ -408,24 +396,19 @@ var gotoFileCommand = commandType{Name: "Transfer file", f: func(g *gocui.Gui, v
 	fileItem := fileList.widget.items[fileList.widget.selectedItem].(map[string]interface{})
 	//filename := item["name"].(string)
 	tracelog.Printf("selected file:'%v'", fileItem)
-	if fileBrowser.isSourceSelection() {
+	if fileBrowser.sourceSelection {
 		if fileItem["dir"].(bool) {
 			fileList.widget.items = fileBrowser.getFileList(fileItem["name"].(string))
 			fileList.widget.title = fileBrowser.getContext()
 		} else {
 			sourceFile = fileBrowser.getPath(fileItem["name"].(string))
-			switch fileBrowser.(type) {
-			case *localFileBrowser:
-				podName := selectedResourceItemName()
-				ns := selectedResourceItemNamespace()
-				fileBrowser = &podFileBrowser{namespace: ns, podName: podName, currentDir: "/", sourceSelection: false}
-				fileList.widget.title = fileBrowser.getContext()
-				fileList.widget.items = fileBrowser.getFileList("")
-			case *podFileBrowser:
-				fileBrowser = &localFileBrowser{podContext: selectedResourceItemName(), currentDir: ".", sourceSelection: false}
-				fileList.widget.title = fileBrowser.getContext()
-				fileList.widget.items = fileBrowser.getFileList("")
+			if fileBrowser.local {
+				fileBrowser = newRemoteFileBrowser(false, "/") //&podFileBrowser{namespace: ns, podName: podName, currentDir: "/", sourceSelection: false}
+			} else {
+				fileBrowser = newLocalFileBrowser(false, ".")
 			}
+			fileList.widget.title = fileBrowser.getContext()
+			fileList.widget.items = fileBrowser.getFileList("")
 		}
 	} else {
 		if fileItem["dir"].(bool) {

@@ -46,7 +46,7 @@ type stateType struct {
 	exitFunc  func(toState stateType)
 }
 
-var fileBrowser fileBrowserType
+var fileBrowser *fileBrowserType
 
 var contextColorFunc = func(item interface{}) gocui.Attribute {
 	context := cfg.contexts[clusterList.widget.selectedItem]
@@ -622,17 +622,31 @@ func updateKubectlContext() {
 	infolog.Printf("kubectl: %s", out)
 }
 
+func startFiletransfer(isUpload bool) {
+	if selectedResource().Name == "pods" {
+		if isUpload {
+			fileBrowser = newLocalFileBrowser(true, ".")
+		} else {
+			fileBrowser = newRemoteFileBrowser(true, "/")
+		}
+		fileList.widget.title = fileBrowser.getContext()
+		fileList.widget.items = fileBrowser.getFileList("")
+		setState(fileState)
+	}
+}
+
 func transferFile(destPath string) {
 	podName := selectedResourceItemName()
 	ns := selectedResourceItemNamespace()
 
 	var cmd *exec.Cmd
 	var mess string
-	switch fileBrowser.(type) {
-	case *localFileBrowser:
-		cmd = kubectl("-n", ns, "cp", podName+":"+sourceFile, destPath)
+
+	if fileBrowser.local {
+		absPath, _ := filepath.Abs(destPath)
+		cmd = kubectl("-n", ns, "cp", podName+":"+sourceFile, absPath)
 		mess = fmt.Sprintf("file download:'%s' in pod '%s' from namespace '%s' to local dir '%s' ", sourceFile, podName, ns, destPath)
-	case *podFileBrowser:
+	} else {
 		cmd = kubectl("-n", ns, "cp", sourceFile, podName+":"+path.Join(destPath, path.Base(sourceFile)))
 		mess = fmt.Sprintf("file upload:'%s' to '%s' in pod '%s' in namespace '%s'", sourceFile, destPath, podName, ns)
 	}
