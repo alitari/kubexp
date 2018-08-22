@@ -32,20 +32,33 @@ func (f *fileBrowserType) getPath(filename string) string {
 
 func (f *fileBrowserType) getContext() string {
 	fp := f.currentDir
-	if len(fp) > 30 {
-		fp = "..." + fp[len(fp)-30:]
+	if len(fp) > 20 {
+		fp = "..." + fp[len(fp)-20:]
 	}
+	podName := selectedResourceItemName()
+	containerName := containerNames[selectedContainerIndex]
+
 	if f.sourceSelection {
-		return fmt.Sprintf("Select source file, dir: %-35.35s", fp)
+		if f.local {
+			return fmt.Sprintf("Select source file, dir: %-20.20s", fp)
+		} else {
+			return fmt.Sprintf("pod/container: %-20.20s/%-20.20sdir: %-20.20s", podName, containerName, fp)
+		}
+	} else {
+		if f.local {
+			return fmt.Sprintf("Select destination dir: %-35.35s", fp)
+		} else {
+			return fmt.Sprintf("pod/container: %-20.20s/%-20.20sdir: %-20.20s", podName, containerName, fp)
+		}
+
 	}
-	return fmt.Sprintf("Select destination dir: %-35.35s", fp)
 }
 
 func (f *fileBrowserType) getFileList(filename string) []interface{} {
 	f.currentDir = path.Join(f.currentDir, filename)
 	fileList := []interface{}{}
 	if !f.sourceSelection {
-		fileList = append(fileList, map[string]interface{}{"dir": false, "name": "Select this dir", "mode": "", "size": 0, "time": ""})
+		fileList = append(fileList, map[string]interface{}{"dir": false, "name": "Select this dir", "mode": "", "size": "0", "time": ""})
 		fileList = append(fileList, filterDirs(f.createFileParts(f.currentDir))...)
 	} else {
 		fileList = append(fileList, f.createFileParts(f.currentDir)...)
@@ -65,7 +78,7 @@ func filterDirs(files []interface{}) (ret []interface{}) {
 }
 
 func createLocalFileParts(file string) []interface{} {
-	fileList := []interface{}{map[string]interface{}{"dir": true, "name": "..", "mode": "", "size": 0, "time": ""}}
+	fileList := []interface{}{map[string]interface{}{"dir": true, "name": "..", "mode": "", "size": "0", "time": ""}}
 	absPath, _ := filepath.Abs(file)
 	files, err := ioutil.ReadDir(absPath)
 	if err != nil {
@@ -74,7 +87,7 @@ func createLocalFileParts(file string) []interface{} {
 
 	for _, f := range files {
 		timef := f.ModTime().Format(time.RFC3339)
-		fileList = append(fileList, map[string]interface{}{"dir": f.IsDir(), "name": f.Name(), "mode": f.Mode().String(), "size": f.Size(), "time": timef})
+		fileList = append(fileList, map[string]interface{}{"dir": f.IsDir(), "name": f.Name(), "mode": f.Mode().String(), "size": strconv.FormatInt(f.Size(), 10), "time": timef})
 	}
 	return fileList
 }
@@ -83,7 +96,8 @@ func createRemoteFileParts(file string) []interface{} {
 	fileList := []interface{}{}
 	podName := selectedResourceItemName()
 	ns := selectedResourceItemNamespace()
-	cmd := kubectl("-n", ns, "exec", podName, "--", "ls", "-l", "-a", file)
+	con := containerNames[selectedContainerIndex]
+	cmd := kubectl("-n", ns, "exec", podName, "-c", con, "--", "ls", "-l", "-a", file)
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out
@@ -99,10 +113,10 @@ func createRemoteFileParts(file string) []interface{} {
 
 	for _, l := range lines {
 		fileFields := strings.Fields(l)
-		if len(fileFields) > 4 {
-			size, _ := strconv.Atoi(fileFields[4])
+		if len(fileFields) > 7 {
 			isDir := fileFields[0][0] == 'd'
-			fileList = append(fileList, map[string]interface{}{"dir": isDir, "name": fileFields[len(fileFields)-1], "mode": fileFields[0], "size": size, "time": ""})
+			time := "" //(fmt.Sprintf("%10.10s %5.5s", fileFields[5], fileFields[6])
+			fileList = append(fileList, map[string]interface{}{"dir": isDir, "name": fileFields[len(fileFields)-1], "mode": fileFields[0], "size": fileFields[4], "time": time})
 		}
 	}
 	return fileList

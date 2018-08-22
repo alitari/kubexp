@@ -42,7 +42,13 @@ func newExecCommand(name, cmd string, containerNr int) commandType {
 		}
 		ns := selectedResourceItemNamespace()
 		rname := selectedResourceItemName()
-		cmd := exec.Command("kubectl", "-n", ns, "exec", "-it", rname, cmd)
+		details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
+		containerNames = resItemContainers(details)
+		if containerNr > len(containerNames)-1 {
+			containerNr = 0
+		}
+
+		cmd := exec.Command("kubectl", "-n", ns, "exec", "-c", containerNames[containerNr], "-it", rname, cmd)
 
 		exe <- cmd
 		return gocui.ErrQuit
@@ -348,7 +354,7 @@ var previousResourceCategoryCommand = commandType{Name: "Next resource category"
 }}
 
 var nextContainerCommand = commandType{Name: "Pod logs: Next container ", f: func(g *gocui.Gui, v *gocui.View) error {
-	nextContainer()
+	nextLogContainer()
 	return nil
 }}
 
@@ -403,7 +409,7 @@ var gotoFileCommand = commandType{Name: "Transfer file", f: func(g *gocui.Gui, v
 		} else {
 			sourceFile = fileBrowser.getPath(fileItem["name"].(string))
 			if fileBrowser.local {
-				fileBrowser = newRemoteFileBrowser(false, "/") //&podFileBrowser{namespace: ns, podName: podName, currentDir: "/", sourceSelection: false}
+				fileBrowser = newRemoteFileBrowser(false, "/")
 			} else {
 				fileBrowser = newLocalFileBrowser(false, ".")
 			}
@@ -416,10 +422,14 @@ var gotoFileCommand = commandType{Name: "Transfer file", f: func(g *gocui.Gui, v
 			fileList.widget.title = fileBrowser.getContext()
 		} else {
 			transferFile(fileBrowser.getPath(""))
-			setState(browseState)
 		}
 	}
 
+	return nil
+}}
+
+var nextContainerFiletransferCommand = commandType{Name: "Next container", f: func(g *gocui.Gui, v *gocui.View) error {
+	nextFileTransferContainer()
 	return nil
 }}
 

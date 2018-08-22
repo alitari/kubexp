@@ -163,6 +163,9 @@ var fileState = stateType{
 	enterFunc: func(fromState stateType) {
 		fileList.widget.visible = true
 		fileList.widget.focus = true
+		details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
+		selectedContainerIndex = 0
+		containerNames = resItemContainers(details)
 	},
 	exitFunc: func(fromState stateType) {
 		fileList.widget.visible = false
@@ -487,13 +490,17 @@ func createWidgets() {
 
 	loadingWidget = newTextWidget("loading", "", false, false, 30, 10, maxX-60, 4)
 
-	fileList = newNlist("files", maxX/2-50, 5, 100, maxY-10)
+	fileList = newNlist("files", maxX/2-45, 5, 90, maxY-10)
 	fileList.widget.expandable = false
 	fileList.widget.visible = false
 	fileList.widget.frame = true
-	fileList.widget.template = tpl("files", `{{ .mode | printf "%-12.12s" }}{{ .size | printf "%10d" }}  {{ .time | printf "%-16.16s" }}  {{ .name | printf "%-40.40s" }}`)
-	// fileList.widget.items = []interface{}{map[string]interface{}{"name": "file1"}}
-
+	fileList.widget.headerItem = map[string]interface{}{"header": "true"}
+	fileList.widget.template = tpl("files", `
+	{{- header "Mode" . .mode | printf "  %-12.12s  " -}}
+	{{- header "Size" . .size | printf "%10s  " -}}
+	{{- header "Time" . .time | printf "%-16.16s  " -}}
+	{{- header "Name" . .name | printf "%-40.40s" -}}`)
+	fileList.widget.headerFgColor = gocui.ColorDefault | gocui.AttrBold
 }
 
 func resourceItemDetailsViews() []interface{} {
@@ -624,6 +631,7 @@ func updateKubectlContext() {
 
 func startFiletransfer(isUpload bool) {
 	if selectedResource().Name == "pods" {
+		setState(fileState)
 		if isUpload {
 			fileBrowser = newLocalFileBrowser(true, ".")
 		} else {
@@ -631,37 +639,46 @@ func startFiletransfer(isUpload bool) {
 		}
 		fileList.widget.title = fileBrowser.getContext()
 		fileList.widget.items = fileBrowser.getFileList("")
-		setState(fileState)
 	}
 }
 
 func transferFile(destPath string) {
 	podName := selectedResourceItemName()
 	ns := selectedResourceItemNamespace()
+	con := containerNames[selectedContainerIndex]
 
 	var cmd *exec.Cmd
 	var mess string
 
 	if fileBrowser.local {
 		absPath, _ := filepath.Abs(destPath)
-		cmd = kubectl("-n", ns, "cp", podName+":"+sourceFile, absPath)
+		cmd = kubectl("-n", ns, "cp", "-c", con, podName+":"+sourceFile, absPath)
 		mess = fmt.Sprintf("file download:'%s' in pod '%s' from namespace '%s' to local dir '%s' ", sourceFile, podName, ns, destPath)
 	} else {
-		cmd = kubectl("-n", ns, "cp", sourceFile, podName+":"+path.Join(destPath, path.Base(sourceFile)))
+		cmd = kubectl("-n", ns, "cp", "-c", con, sourceFile, podName+":"+path.Join(destPath, path.Base(sourceFile)))
 		mess = fmt.Sprintf("file upload:'%s' to '%s' in pod '%s' in namespace '%s'", sourceFile, destPath, podName, ns)
 	}
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	err := cmd.Run()
-	if err != nil {
-		fullmess := fmt.Sprintf("Problem: %s \n details: %s", mess, fmt.Sprintf(fmt.Sprint(err)+": %s ", stderr.String()))
-		errorlog.Print(fullmess)
-		showError(fullmess, err)
-		return
-	}
-	infolog.Print(mess + " succeeded!")
+
+	co := []interface{}{mess + "..."}
+	loadingWidget.setContent(co, tpl("loading", loadingTemplate))
+	setState(loadingState)
+	g.Update(func(gui *gocui.Gui) error {
+
+		var out bytes.Buffer
+		var stderr bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		if err != nil {
+			fullmess := fmt.Sprintf("Problem: %s \n details: %s", mess, fmt.Sprintf(fmt.Sprint(err)+": %s ", stderr.String()))
+			errorlog.Print(fullmess)
+			showError(fullmess, err)
+			return nil
+		}
+		infolog.Print(mess + " succeeded!")
+		setState(browseState)
+		return nil
+	})
 }
 
 func strToColor(colorStr string) gocui.Attribute {
@@ -775,7 +792,7 @@ func leaveResourceItemDetailsPart() {
 	}
 }
 
-func nextContainer() {
+func nextLogContainer() {
 	l := len(containerNames)
 	if l <= 0 || selectedResourceItemDetailsView().Name != "logs" {
 		return
@@ -787,6 +804,21 @@ func nextContainer() {
 	}
 	backend.closePodLogsWatch()
 	setResourceItemDetailsPart()
+}
+
+func nextFileTransferContainer() {
+	l := len(containerNames)
+	if l <= 0 || fileBrowser.local {
+		return
+	}
+	if selectedContainerIndex < l-1 {
+		selectedContainerIndex = selectedContainerIndex + 1
+	} else {
+		selectedContainerIndex = 0
+	}
+	fileBrowser = newRemoteFileBrowser(fileBrowser.sourceSelection, "/")
+	fileList.widget.title = fileBrowser.getContext()
+	fileList.widget.items = fileBrowser.getFileList("")
 }
 
 func setResourceItemDetailsPart() {
@@ -968,6 +1000,7 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextFileCommand)
 	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextFilePageCommand)
 	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousFilePageCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyCtrlO, mod: gocui.ModNone}, nextContainerFiletransferCommand)
 	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyCtrlC, mod: gocui.ModNone}, quitWidgetCommand)
 
 }
