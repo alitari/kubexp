@@ -404,8 +404,7 @@ var gotoFileCommand = commandType{Name: "Transfer file", f: func(g *gocui.Gui, v
 	tracelog.Printf("selected file:'%v'", fileItem)
 	if fileBrowser.sourceSelection {
 		if fileItem["dir"].(bool) {
-			fileList.widget.items = fileBrowser.getFileList(fileItem["name"].(string))
-			fileList.widget.title = fileBrowser.getContext()
+			setFileListContent(fileItem["name"].(string))
 		} else {
 			sourceFile = fileBrowser.getPath(fileItem["name"].(string))
 			if fileBrowser.local {
@@ -413,13 +412,11 @@ var gotoFileCommand = commandType{Name: "Transfer file", f: func(g *gocui.Gui, v
 			} else {
 				fileBrowser = newLocalFileBrowser(false, ".")
 			}
-			fileList.widget.title = fileBrowser.getContext()
-			fileList.widget.items = fileBrowser.getFileList("")
+			setFileListContent("")
 		}
 	} else {
 		if fileItem["dir"].(bool) {
-			fileList.widget.items = fileBrowser.getFileList(fileItem["name"].(string))
-			fileList.widget.title = fileBrowser.getContext()
+			setFileListContent(fileItem["name"].(string))
 		} else {
 			transferFile(fileBrowser.getPath(""))
 		}

@@ -41,17 +41,13 @@ func (f *fileBrowserType) getContext() string {
 	if f.sourceSelection {
 		if f.local {
 			return fmt.Sprintf("Select source file, dir: %-20.20s", fp)
-		} else {
-			return fmt.Sprintf("pod/container: %-20.20s/%-20.20sdir: %-20.20s", podName, containerName, fp)
 		}
-	} else {
-		if f.local {
-			return fmt.Sprintf("Select destination dir: %-35.35s", fp)
-		} else {
-			return fmt.Sprintf("pod/container: %-20.20s/%-20.20sdir: %-20.20s", podName, containerName, fp)
-		}
-
+		return fmt.Sprintf("pod/container: %17.17s/%-15.15s dir: %-20.20s", podName, containerName, fp)
 	}
+	if f.local {
+		return fmt.Sprintf("Select destination dir: %-35.35s", fp)
+	}
+	return fmt.Sprintf("pod/container: %17.17s/%-15.15s dir: %-20.20s", podName, containerName, fp)
 }
 
 func (f *fileBrowserType) getFileList(filename string) []interface{} {
@@ -115,41 +111,9 @@ func createRemoteFileParts(file string) []interface{} {
 		fileFields := strings.Fields(l)
 		if len(fileFields) > 7 {
 			isDir := fileFields[0][0] == 'd'
-			time := "" //(fmt.Sprintf("%10.10s %5.5s", fileFields[5], fileFields[6])
+			time := fmt.Sprintf("%3.3s %2.2s %5.5s ", fileFields[5], fileFields[6], fileFields[7])
 			fileList = append(fileList, map[string]interface{}{"dir": isDir, "name": fileFields[len(fileFields)-1], "mode": fileFields[0], "size": fileFields[4], "time": time})
 		}
 	}
 	return fileList
 }
-
-// func (p *podFileBrowser) getFileList(filename string) []interface{} {
-// 	p.currentDir = path.Join(p.currentDir, filename)
-// 	fileList := []interface{}{}
-// 	if !p.isSourceSelection() {
-// 		fileList = append(fileList, map[string]interface{}{"dir": false, "name": "Select this dir", "mode": "", "size": 0, "time": ""})
-// 	}
-
-// 	cmd := kubectl("-n", p.namespace, "exec", p.podName, "--", "ls", "-l", "-a", p.currentDir)
-// 	var out bytes.Buffer
-// 	var stderr bytes.Buffer
-// 	cmd.Stdout = &out
-// 	cmd.Stderr = &stderr
-// 	err := cmd.Run()
-// 	if err != nil {
-// 		fullmess := fmt.Sprintf("%v: %s", err, stderr.String())
-// 		errorlog.Print(fullmess)
-// 		showError(fullmess, err)
-// 	}
-// 	lsStr := out.String()
-// 	lines := strings.Split(lsStr, "\n")
-
-// 	for _, l := range lines {
-// 		fileFields := strings.Fields(l)
-// 		if len(fileFields) > 4 {
-// 			size, _ := strconv.Atoi(fileFields[4])
-// 			isDir := fileFields[0][0] == 'd'
-// 			fileList = append(fileList, map[string]interface{}{"dir": isDir, "name": fileFields[len(fileFields)-1], "mode": fileFields[0], "size": size, "time": ""})
-// 		}
-// 	}
-// 	return fileList
-// }

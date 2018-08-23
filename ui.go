@@ -637,8 +637,7 @@ func startFiletransfer(isUpload bool) {
 		} else {
 			fileBrowser = newRemoteFileBrowser(true, "/")
 		}
-		fileList.widget.title = fileBrowser.getContext()
-		fileList.widget.items = fileBrowser.getFileList("")
+		setFileListContent("")
 	}
 }
 
@@ -653,10 +652,10 @@ func transferFile(destPath string) {
 	if fileBrowser.local {
 		absPath, _ := filepath.Abs(destPath)
 		cmd = kubectl("-n", ns, "cp", "-c", con, podName+":"+sourceFile, absPath)
-		mess = fmt.Sprintf("file download:'%s' in pod '%s' from namespace '%s' to local dir '%s' ", sourceFile, podName, ns, destPath)
+		mess = fmt.Sprintf("file download:'%s'\n in pod '%s' from namespace '%s'\n to local dir '%s' ", sourceFile, podName, ns, destPath)
 	} else {
 		cmd = kubectl("-n", ns, "cp", "-c", con, sourceFile, podName+":"+path.Join(destPath, path.Base(sourceFile)))
-		mess = fmt.Sprintf("file upload:'%s' to '%s' in pod '%s' in namespace '%s'", sourceFile, destPath, podName, ns)
+		mess = fmt.Sprintf("file upload:'%s' \n to '%s' in pod '%s' in namespace '%s'", sourceFile, destPath, podName, ns)
 	}
 
 	co := []interface{}{mess + "..."}
@@ -817,8 +816,14 @@ func nextFileTransferContainer() {
 		selectedContainerIndex = 0
 	}
 	fileBrowser = newRemoteFileBrowser(fileBrowser.sourceSelection, "/")
+	setFileListContent("")
+}
+
+func setFileListContent(dir string) {
+	fileList.widget.items = fileBrowser.getFileList(dir)
 	fileList.widget.title = fileBrowser.getContext()
-	fileList.widget.items = fileBrowser.getFileList("")
+	fileList.widget.selectedItem = 0
+	fileList.widget.selectedPage = 0
 }
 
 func setResourceItemDetailsPart() {
