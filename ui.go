@@ -1,11 +1,13 @@
 package kubexp
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -43,6 +45,8 @@ type stateType struct {
 	enterFunc func(fromState stateType)
 	exitFunc  func(toState stateType)
 }
+
+var fileBrowser *fileBrowserType
 
 var contextColorFunc = func(item interface{}) gocui.Attribute {
 	context := cfg.contexts[clusterList.widget.selectedItem]
@@ -153,6 +157,22 @@ var helpState = stateType{
 		helpWidget.visible = false
 	},
 }
+
+var fileState = stateType{
+	name: "fileState",
+	enterFunc: func(fromState stateType) {
+		fileList.widget.visible = true
+		fileList.widget.focus = true
+		details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
+		selectedContainerIndex = 0
+		containerNames = resItemContainers(details)
+	},
+	exitFunc: func(fromState stateType) {
+		fileList.widget.visible = false
+		fileList.widget.focus = false
+	},
+}
+
 var execPodState = stateType{
 	name: "execPodState",
 	enterFunc: func(fromState stateType) {
@@ -228,6 +248,7 @@ var execWidget *shellWidget
 var errorWidget *textWidget
 var confirmWidget *textWidget
 var loadingWidget *textWidget
+var fileList *nlist
 
 var selectedResourceCategoryIndex = 0
 var selectedClusterInfoIndex = 0
@@ -241,6 +262,8 @@ var resourceCategories []string
 
 var containerNames []string
 var selectedContainerIndex int
+
+var sourceFile string
 
 var g *gocui.Gui
 
@@ -318,7 +341,7 @@ func initGui() {
 	if currentState.name != browseState.name {
 		createWidgets()
 	}
-	g.SetManager(clusterList.widget, clusterResourcesWidget, namespaceList.widget, resourceMenu.widget, resourcesItemDetailsMenu.widget, searchmodeWidget, resourceItemsList.widget, resourceItemDetailsWidget, helpWidget, errorWidget, execWidget, confirmWidget, loadingWidget)
+	g.SetManager(clusterList.widget, clusterResourcesWidget, namespaceList.widget, resourceMenu.widget, resourcesItemDetailsMenu.widget, searchmodeWidget, resourceItemsList.widget, resourceItemDetailsWidget, helpWidget, errorWidget, execWidget, confirmWidget, loadingWidget, fileList.widget)
 
 	bindKeys()
 	if currentState.name != browseState.name {
@@ -467,6 +490,17 @@ func createWidgets() {
 
 	loadingWidget = newTextWidget("loading", "", false, false, 30, 10, maxX-60, 4)
 
+	fileList = newNlist("files", maxX/2-45, 5, 90, maxY-10)
+	fileList.widget.expandable = false
+	fileList.widget.visible = false
+	fileList.widget.frame = true
+	fileList.widget.headerItem = map[string]interface{}{"header": "true"}
+	fileList.widget.template = tpl("files", `
+	{{- header "Mode" . .mode | printf "  %-12.12s  " -}}
+	{{- header "Size" . .size | printf "%10s  " -}}
+	{{- header "Time" . .time | printf "%-16.16s  " -}}
+	{{- header "Name" . .name | printf "%-40.40s" -}}`)
+	fileList.widget.headerFgColor = gocui.ColorDefault | gocui.AttrBold
 }
 
 func resourceItemDetailsViews() []interface{} {
@@ -595,6 +629,57 @@ func updateKubectlContext() {
 	infolog.Printf("kubectl: %s", out)
 }
 
+func startFiletransfer(isUpload bool) {
+	if selectedResource().Name == "pods" {
+		setState(fileState)
+		if isUpload {
+			fileBrowser = newLocalFileBrowser(true, ".")
+		} else {
+			fileBrowser = newRemoteFileBrowser(true, "/")
+		}
+		setFileListContent("")
+	}
+}
+
+func transferFile(destPath string) {
+	podName := selectedResourceItemName()
+	ns := selectedResourceItemNamespace()
+	con := containerNames[selectedContainerIndex]
+
+	var cmd *exec.Cmd
+	var mess string
+
+	if fileBrowser.local {
+		absPath, _ := filepath.Abs(destPath)
+		cmd = kubectl("-n", ns, "cp", "-c", con, podName+":"+sourceFile, absPath)
+		mess = fmt.Sprintf("file download:'%s'\n in pod '%s' from namespace '%s'\n to local dir '%s' ", sourceFile, podName, ns, destPath)
+	} else {
+		cmd = kubectl("-n", ns, "cp", "-c", con, sourceFile, podName+":"+path.Join(destPath, path.Base(sourceFile)))
+		mess = fmt.Sprintf("file upload:'%s' \n to '%s' in pod '%s' in namespace '%s'", sourceFile, destPath, podName, ns)
+	}
+
+	co := []interface{}{mess + "..."}
+	loadingWidget.setContent(co, tpl("loading", loadingTemplate))
+	setState(loadingState)
+	g.Update(func(gui *gocui.Gui) error {
+
+		var out bytes.Buffer
+		var stderr bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &stderr
+		err := cmd.Run()
+		if err != nil {
+			fullmess := fmt.Sprintf("Problem: %s \n details: %s", mess, fmt.Sprintf(fmt.Sprint(err)+": %s ", stderr.String()))
+			errorlog.Print(fullmess)
+			showError(fullmess, err)
+			return nil
+		}
+		infolog.Print(mess + " succeeded!")
+		setState(browseState)
+		return nil
+	})
+}
+
 func strToColor(colorStr string) gocui.Attribute {
 	switch colorStr {
 	case "Blue":
@@ -706,7 +791,7 @@ func leaveResourceItemDetailsPart() {
 	}
 }
 
-func nextContainer() {
+func nextLogContainer() {
 	l := len(containerNames)
 	if l <= 0 || selectedResourceItemDetailsView().Name != "logs" {
 		return
@@ -718,6 +803,27 @@ func nextContainer() {
 	}
 	backend.closePodLogsWatch()
 	setResourceItemDetailsPart()
+}
+
+func nextFileTransferContainer() {
+	l := len(containerNames)
+	if l <= 0 || fileBrowser.local {
+		return
+	}
+	if selectedContainerIndex < l-1 {
+		selectedContainerIndex = selectedContainerIndex + 1
+	} else {
+		selectedContainerIndex = 0
+	}
+	fileBrowser = newRemoteFileBrowser(fileBrowser.sourceSelection, "/")
+	setFileListContent("")
+}
+
+func setFileListContent(dir string) {
+	fileList.widget.items = fileBrowser.getFileList(dir)
+	fileList.widget.title = fileBrowser.getContext()
+	fileList.widget.selectedItem = 0
+	fileList.widget.selectedPage = 0
 }
 
 func setResourceItemDetailsPart() {
@@ -891,6 +997,16 @@ func bindKeys() {
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextContextCommand)
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextContextPageCommand)
 	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousContextPageCommand)
+
+	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'u', mod: gocui.ModNone}, uploadFileCommand)
+	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'd', mod: gocui.ModNone}, downloadFileCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, gotoFileCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousFileCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextFileCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextFilePageCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousFilePageCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyCtrlO, mod: gocui.ModNone}, nextContainerFiletransferCommand)
+	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyCtrlC, mod: gocui.ModNone}, quitWidgetCommand)
 
 }
 

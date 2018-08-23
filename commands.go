@@ -42,7 +42,13 @@ func newExecCommand(name, cmd string, containerNr int) commandType {
 		}
 		ns := selectedResourceItemNamespace()
 		rname := selectedResourceItemName()
-		cmd := exec.Command("kubectl", "-n", ns, "exec", "-it", rname, cmd)
+		details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
+		containerNames = resItemContainers(details)
+		if containerNr > len(containerNames)-1 {
+			containerNr = 0
+		}
+
+		cmd := exec.Command("kubectl", "-n", ns, "exec", "-c", containerNames[containerNr], "-it", rname, cmd)
 
 		exe <- cmd
 		return gocui.ErrQuit
@@ -348,7 +354,7 @@ var previousResourceCategoryCommand = commandType{Name: "Next resource category"
 }}
 
 var nextContainerCommand = commandType{Name: "Pod logs: Next container ", f: func(g *gocui.Gui, v *gocui.View) error {
-	nextContainer()
+	nextLogContainer()
 	return nil
 }}
 
@@ -359,6 +365,68 @@ var showHelpCommand = commandType{Name: "Show help", f: func(g *gocui.Gui, v *go
 
 var quitWidgetCommand = commandType{Name: "quit", f: func(g *gocui.Gui, v *gocui.View) error {
 	setState(browseState)
+	return nil
+}}
+
+var uploadFileCommand = commandType{Name: "Upload file", f: func(g *gocui.Gui, v *gocui.View) error {
+	startFiletransfer(true)
+	return nil
+}}
+
+var downloadFileCommand = commandType{Name: "Download file", f: func(g *gocui.Gui, v *gocui.View) error {
+	startFiletransfer(false)
+	return nil
+}}
+
+var nextFileCommand = commandType{Name: "Next File", f: func(g *gocui.Gui, v *gocui.View) error {
+	fileList.widget.nextSelectedItem()
+	return nil
+}}
+
+var previousFileCommand = commandType{Name: "Previous File", f: func(g *gocui.Gui, v *gocui.View) error {
+	fileList.widget.previousSelectedItem()
+	return nil
+}}
+
+var nextFilePageCommand = commandType{Name: "Next File", f: func(g *gocui.Gui, v *gocui.View) error {
+	fileList.widget.nextPage()
+	return nil
+}}
+
+var previousFilePageCommand = commandType{Name: "Previous File", f: func(g *gocui.Gui, v *gocui.View) error {
+	fileList.widget.previousPage()
+	return nil
+}}
+
+var gotoFileCommand = commandType{Name: "Transfer file", f: func(g *gocui.Gui, v *gocui.View) error {
+	fileItem := fileList.widget.items[fileList.widget.selectedItem].(map[string]interface{})
+	//filename := item["name"].(string)
+	tracelog.Printf("selected file:'%v'", fileItem)
+	if fileBrowser.sourceSelection {
+		if fileItem["dir"].(bool) {
+			setFileListContent(fileItem["name"].(string))
+		} else {
+			sourceFile = fileBrowser.getPath(fileItem["name"].(string))
+			if fileBrowser.local {
+				fileBrowser = newRemoteFileBrowser(false, "/")
+			} else {
+				fileBrowser = newLocalFileBrowser(false, ".")
+			}
+			setFileListContent("")
+		}
+	} else {
+		if fileItem["dir"].(bool) {
+			setFileListContent(fileItem["name"].(string))
+		} else {
+			transferFile(fileBrowser.getPath(""))
+		}
+	}
+
+	return nil
+}}
+
+var nextContainerFiletransferCommand = commandType{Name: "Next container", f: func(g *gocui.Gui, v *gocui.View) error {
+	nextFileTransferContainer()
 	return nil
 }}
 

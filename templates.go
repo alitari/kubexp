@@ -625,6 +625,8 @@ func keyString(keyEvent interface{}) string {
 			keyStr = "Page Down"
 		case gocui.KeyPgup:
 			keyStr = "Page Up"
+		case gocui.KeyCtrlO:
+			keyStr = "Ctrl-o"
 		case gocui.KeyDelete:
 			if m == gocui.ModAlt {
 				keyStr = "Alt-Delete"
