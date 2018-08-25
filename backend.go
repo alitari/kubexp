@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -153,6 +154,7 @@ func newBackend(cfg *configType, context contextType) *backendType {
 				req.Header.Add("Content-Type", "application/strategic-merge-patch+json")
 				req.Header.Add("Accept", "*/*")
 			}
+			tracelog.Printf("Header: %v", req.Header)
 
 			response, err := client.Do(req)
 
@@ -477,6 +479,14 @@ func (b *backendType) deleteResourceItem(resName string, ri map[string]interface
 	} else {
 		warninglog.Printf("delete: ri (%s/%s) not found ", resName, name)
 	}
+}
+
+func kubectl(ctx string, a1 string, a ...string) *exec.Cmd {
+	context := fmt.Sprintf("--context=%s", ctx)
+	timeout := fmt.Sprintf("--request-timeout=%ds", kubeCtlTimeout)
+	full := append([]string{context, timeout, a1}, a[:]...)
+	tracelog.Printf("kubectl %v", full)
+	return execCommand("kubectl", full...)
 }
 
 func unmarshallBytes(b []byte) map[string]interface{} {

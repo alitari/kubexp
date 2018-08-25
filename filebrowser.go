@@ -93,7 +93,7 @@ func createRemoteFileParts(file string) []interface{} {
 	podName := selectedResourceItemName()
 	ns := selectedResourceItemNamespace()
 	con := containerNames[selectedContainerIndex]
-	cmd := kubectl("-n", ns, "exec", podName, "-c", con, "--", "ls", "-l", "-a", file)
+	cmd := kubectl(backend.context.Name, "-n", ns, "exec", podName, "-c", con, "--", "ls", "-l", "-a", file)
 	var out bytes.Buffer
 	var stderr bytes.Buffer
 	cmd.Stdout = &out

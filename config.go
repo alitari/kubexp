@@ -1,7 +1,6 @@
 package kubexp
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -832,16 +831,10 @@ func (c *configType) createContexts() *configType {
 		} else {
 			colorIndex := len(cs) % 4
 			ct := contextType{Name: cmap["name"].(string), Cluster: cluster, user: user, color: contextColors[colorIndex]}
-			if c.isAvailable(ct) {
-				cs = append(cs, ct)
-				mess := fmt.Sprintf("created context no %d with name '%s' ", i+1, ct.Name)
-				fmt.Println(mess)
-				tracelog.Print(mess)
-			} else {
-				mess := fmt.Sprintf("skipping context %d with name '%s' because cluster is not available.  ", i+1, ct.Name)
-				fmt.Println(mess)
-				warninglog.Print(mess)
-			}
+			cs = append(cs, ct)
+			mess := fmt.Sprintf("created context no %d with name '%s' ", i+1, ct.Name)
+			fmt.Println(mess)
+			tracelog.Print(mess)
 		}
 	}
 	if len(cs) == 0 {
@@ -882,10 +875,6 @@ func (c *configType) parseUser(cfg map[string]interface{}, cm interface{}) (user
 	}
 	user := filterArrayOnKeyValue(cfg["users"], "name", userName).([]interface{})[0]
 	token := val1(user, "{{.user.token}}")
-	if token == "" {
-		mess := fmt.Sprintf("No token found in user %s", userName)
-		return userType{}, errors.New(mess)
-	}
 	return userType{Name: userName, token: token}, nil
 }
 
