@@ -2,11 +2,13 @@ package kubexp
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os/exec"
 	"sort"
 	"strings"
 	"time"
@@ -477,6 +479,23 @@ func (b *backendType) deleteResourceItem(resName string, ri map[string]interface
 	} else {
 		warninglog.Printf("delete: ri (%s/%s) not found ", resName, name)
 	}
+}
+
+func kubectl(ctx string, a1 string, a ...string) *exec.Cmd {
+	context := fmt.Sprintf("--context=%s", ctx)
+	timeout := fmt.Sprintf("--request-timeout=%ds", kubeCtlTimeout)
+	full := append([]string{context, timeout, a1}, a[:]...)
+	tracelog.Printf("kubectl %v", full)
+	return execCommand("kubectl", full...)
+}
+
+func runCmd(cmd *exec.Cmd) (string, string, error) {
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	return out.String(), stderr.String(), err
 }
 
 func unmarshallBytes(b []byte) map[string]interface{} {

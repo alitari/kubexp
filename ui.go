@@ -2,6 +2,7 @@ package kubexp
 
 import (
 	"bytes"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -232,6 +233,7 @@ var portforwardProxies = map[string][]*portforwardProxy{}
 var portforwardStartPort int
 var currentPortforwardPort int
 var restCallTimeout int
+var kubeCtlTimeout int
 var clusterLivenessPeriod int
 
 var clusterList *nlist
@@ -296,10 +298,9 @@ func Run() {
 	}
 	infolog.Printf("-------------------------------------< Startup >---------------------------------------------\n")
 	cfg = newConfig(*configFile)
+	ctx := cfg.contexts[0]
 	resourceCategories = cfg.allResourceCategories()
-	backend = newBackend(cfg, cfg.contexts[0])
-	updateKubectlContext()
-
+	backend = newBackend(cfg, ctx)
 	go commandRunner()
 	currentState = initState
 
@@ -365,6 +366,8 @@ func parseFlags() {
 	logFilePath = flag.String("logFile", "./kubexp.log", "fullpath to log file, set empty ( -logFile='') if no logfile should be used")
 	flag.IntVar(&portforwardStartPort, "portForwardStartPort", 32100, "start of portforward range")
 	flag.IntVar(&restCallTimeout, "restCallTimeout", 3, "time out for rest calls in seconds")
+	flag.IntVar(&kubeCtlTimeout, "kubectlTimeout", 3, "time out for kubectl calls in seconds")
+
 	flag.IntVar(&clusterLivenessPeriod, "clusterLivenessPeriod", 5, "cluster liveness check period in seconds")
 
 	flag.Parse()
@@ -601,9 +604,11 @@ func newResourceCategory() {
 	}
 }
 
-func newContext() {
+func newContext() error {
+	ctx := cfg.contexts[clusterList.widget.selectedItem]
 	backend.closeWatches()
-	backend = newBackend(cfg, cfg.contexts[clusterList.widget.selectedItem])
+	backend = newBackend(cfg, ctx)
+
 	err := backend.createWatches()
 	if err != nil {
 		showError(fmt.Sprintf("Can't connect to api server, url:%s ", backend.context.Cluster.URL), err)
@@ -616,17 +621,40 @@ func newContext() {
 	clusterRes := clusterRes()
 	clusterResourcesWidget.setContent(&clusterRes, tpl("clusterResources", clusterResourcesTemplate))
 	findResourceCategoryWithResources(1)
-	updateKubectlContext()
+	return nil
 }
 
-func updateKubectlContext() {
-	cmd := kubectl("config", "use-context", backend.context.Name)
-	out, err := cmd.Output()
+func retrieveContextToken(ctx *contextType) (string, error) {
+	cmd := kubectl(ctx.Name, "get", "secret")
+	out, errorStr, err := runCmd(cmd)
 	if err != nil {
-		showError(fmt.Sprint("Problem executing kubectl"), err)
-		return
+		return errorStr, err
 	}
-	infolog.Printf("kubectl: %s", out)
+	var tokenSecretName string
+	for _, l := range strings.Split(string(out), "\n") {
+		name := strings.Split(l, " ")[0]
+		if strings.HasPrefix(name, "default-token") {
+			tokenSecretName = name
+			break
+		}
+	}
+
+	cmd = kubectl(ctx.Name, "get", "secret", tokenSecretName, "-o", "json")
+	out, errorStr, err = runCmd(cmd)
+	if err != nil {
+		return errorStr, err
+	}
+
+	tokenSecret := unmarshall(out)
+	tokenB64 := val1(tokenSecret, "{{.data.token}}")
+	token, err := base64.StdEncoding.DecodeString(tokenB64)
+	if err != nil {
+		return "", err
+	}
+	tokenStr := string(token)
+	tracelog.Printf(" retrieved token for context '%s'...", ctx.Name)
+	ctx.user.token = tokenStr
+	return "", nil
 }
 
 func startFiletransfer(isUpload bool) {
@@ -651,10 +679,10 @@ func transferFile(destPath string) {
 
 	if fileBrowser.local {
 		absPath, _ := filepath.Abs(destPath)
-		cmd = kubectl("-n", ns, "cp", "-c", con, podName+":"+sourceFile, absPath)
+		cmd = kubectl(backend.context.Name, "-n", ns, "cp", "-c", con, podName+":"+sourceFile, absPath)
 		mess = fmt.Sprintf("file download:'%s'\n in pod '%s' from namespace '%s'\n to local dir '%s' ", sourceFile, podName, ns, destPath)
 	} else {
-		cmd = kubectl("-n", ns, "cp", "-c", con, sourceFile, podName+":"+path.Join(destPath, path.Base(sourceFile)))
+		cmd = kubectl(backend.context.Name, "-n", ns, "cp", "-c", con, sourceFile, podName+":"+path.Join(destPath, path.Base(sourceFile)))
 		mess = fmt.Sprintf("file upload:'%s' \n to '%s' in pod '%s' in namespace '%s'", sourceFile, destPath, podName, ns)
 	}
 

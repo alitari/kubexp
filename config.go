@@ -1,7 +1,6 @@
 package kubexp
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/url"
@@ -811,7 +810,7 @@ func (c *configType) createContexts() *configType {
 	if err != nil {
 		fatalStderrlog.Fatalf("Can't read file %s: %v", c.configFile, err.Error())
 	}
-	mess := fmt.Sprintf("reading clusters config from %s ...", c.configFile)
+	mess := fmt.Sprintf("reading clusters config from %s:", c.configFile)
 	fmt.Println(mess)
 	tracelog.Print(mess)
 
@@ -827,21 +826,22 @@ func (c *configType) createContexts() *configType {
 		cmap := ctx.(map[interface{}]interface{})
 		cluster := c.parseCluster(cfg, cmap["context"])
 		user, err := c.parseUser(cfg, cmap["context"])
+		ct := contextType{Name: cmap["name"].(string), Cluster: cluster, user: user}
+		mess := fmt.Sprintf("try connecting context '%s'...", ct.Name)
+		fmt.Println(mess)
+		tracelog.Print(mess)
+		errorStr, err := retrieveContextToken(&ct)
 		if err != nil {
-			warninglog.Printf("Skipping context %v, due to: %v", ctx, err)
+			mess := fmt.Sprintf("Skipping context %s, due to error: %v\nDetails:%s", ct.Name, err, errorStr)
+			fmt.Println(mess)
+			warninglog.Print(mess)
 		} else {
 			colorIndex := len(cs) % 4
-			ct := contextType{Name: cmap["name"].(string), Cluster: cluster, user: user, color: contextColors[colorIndex]}
-			if c.isAvailable(ct) {
-				cs = append(cs, ct)
-				mess := fmt.Sprintf("created context no %d with name '%s' ", i+1, ct.Name)
-				fmt.Println(mess)
-				tracelog.Print(mess)
-			} else {
-				mess := fmt.Sprintf("skipping context %d with name '%s' because cluster is not available.  ", i+1, ct.Name)
-				fmt.Println(mess)
-				warninglog.Print(mess)
-			}
+			ct.color = contextColors[colorIndex]
+			cs = append(cs, ct)
+			mess := fmt.Sprintf("created context no %d with name '%s' ", i+1, ct.Name)
+			fmt.Println(mess)
+			tracelog.Print(mess)
 		}
 	}
 	if len(cs) == 0 {
@@ -882,10 +882,6 @@ func (c *configType) parseUser(cfg map[string]interface{}, cm interface{}) (user
 	}
 	user := filterArrayOnKeyValue(cfg["users"], "name", userName).([]interface{})[0]
 	token := val1(user, "{{.user.token}}")
-	if token == "" {
-		mess := fmt.Sprintf("No token found in user %s", userName)
-		return userType{}, errors.New(mess)
-	}
 	return userType{Name: userName, token: token}, nil
 }
 

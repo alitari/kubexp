@@ -1,7 +1,6 @@
 package kubexp
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -93,18 +92,13 @@ func createRemoteFileParts(file string) []interface{} {
 	podName := selectedResourceItemName()
 	ns := selectedResourceItemNamespace()
 	con := containerNames[selectedContainerIndex]
-	cmd := kubectl("-n", ns, "exec", podName, "-c", con, "--", "ls", "-l", "-a", file)
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	err := cmd.Run()
+	cmd := kubectl(backend.context.Name, "-n", ns, "exec", podName, "-c", con, "--", "ls", "-l", "-a", file)
+	lsStr, errorStr, err := runCmd(cmd)
 	if err != nil {
-		fullmess := fmt.Sprintf("%v: %s", err, stderr.String())
+		fullmess := fmt.Sprintf("%v: %s", err, errorStr)
 		errorlog.Print(fullmess)
 		showError(fullmess, err)
 	}
-	lsStr := out.String()
 	lines := strings.Split(lsStr, "\n")
 
 	for _, l := range lines {

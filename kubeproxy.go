@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"os/exec"
 	"time"
 )
 
@@ -35,7 +34,7 @@ func newPortforwardProxy(namespace, podName string, ports portMapping) *portforw
 
 func (p *portforwardProxy) execute() error {
 	go func() {
-		cmd := kubectl("port-forward", "-n", p.namespace, p.pod, fmt.Sprintf("%v:%v", p.mapping.destPort, p.mapping.containerPort.port))
+		cmd := kubectl(backend.context.Name, "port-forward", "-n", p.namespace, p.pod, fmt.Sprintf("%v:%v", p.mapping.destPort, p.mapping.containerPort.port))
 		cmd.Output()
 	}()
 	return nil
@@ -57,10 +56,4 @@ func (p *portforwardProxy) stop() error {
 		}
 	}
 	return nil
-}
-
-func kubectl(a1 string, a ...string) *exec.Cmd {
-	full := append([]string{a1}, a[:]...)
-	tracelog.Printf("kubectl %v", full)
-	return execCommand("kubectl", full...)
 }
