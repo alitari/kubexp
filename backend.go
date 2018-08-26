@@ -2,6 +2,7 @@ package kubexp
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -154,7 +155,6 @@ func newBackend(cfg *configType, context contextType) *backendType {
 				req.Header.Add("Content-Type", "application/strategic-merge-patch+json")
 				req.Header.Add("Accept", "*/*")
 			}
-			tracelog.Printf("Header: %v", req.Header)
 
 			response, err := client.Do(req)
 
@@ -487,6 +487,15 @@ func kubectl(ctx string, a1 string, a ...string) *exec.Cmd {
 	full := append([]string{context, timeout, a1}, a[:]...)
 	tracelog.Printf("kubectl %v", full)
 	return execCommand("kubectl", full...)
+}
+
+func runCmd(cmd *exec.Cmd) (string, string, error) {
+	var out bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	return out.String(), stderr.String(), err
 }
 
 func unmarshallBytes(b []byte) map[string]interface{} {
