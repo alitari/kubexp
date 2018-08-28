@@ -3,49 +3,33 @@
 [![CircleCI](https://circleci.com/gh/alitari/kubexp.svg?style=svg&circle-token=0a1cb7c84884d737a8f742e7775ef88dbda65aff)](https://circleci.com/gh/alitari/kubexp)
 [![codecov](https://codecov.io/gh/alitari/kubexp/branch/master/graph/badge.svg)](https://codecov.io/gh/alitari/kubexp)
 
-kubexp is a console user interface for [kubernetes](https://kubernetes.io/). You get an efficient access and overview of kubernetes resources without much typing effort.
+kubexp is a console user interface for [kubernetes](https://kubernetes.io/).
 
-![browse](./gifs/browse.gif)
+![browse](./pics/brwsr.png)
 
-see more features [here](./gifs/features.md)
+### Features
 
-## Setup
+- automatic update view when cluster changes
+- switch cluster
+- resource details and incremental search
+- following container logs
+- exec into container
+- pod port-forward
+- upload/download files to container
+- scale deployments, replicasets etc.
+- delete resources
+
+## Installation
 
 ### rbac
 
-Your [service account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/) must have a rolebinding to cluster admin in each k8s cluster. The file [rbac-default-clusteradmin.yaml](./rbac-default-clusteradmin.yaml) contains the according [clusterrolebinding]((https://kubernetes.io/docs/admin/authorization/rbac/#kubectl-create-clusterrolebinding)) for the default service account:
+Your [service account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/) must have a rolebinding to cluster admin in each k8s cluster. The file [rbac-default-clusteradmin.yaml](./rbac-default-clusteradmin.yaml) contains the according [clusterrolebinding](<(https://kubernetes.io/docs/admin/authorization/rbac/#kubectl-create-clusterrolebinding)>) for the default service account:
 
 ```bash
 kubectl apply -f rbac-default-clusteradmin.yaml
 ```
 
-### configure clusters
-
-kubexp uses `~/.kube/config` to read the k8s contexts. The user of a context *must* have a token defined:
-
-```yaml
-apiVersion: v1
-clusters:
-...
-contexts:
-...
-users:
-- name: ...
-  user:
-    # this line is needed!
-    token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9....
-...
-```
-
-Having access to your cluster with [`kubectl`](https://kubernetes.io/docs/user-guide/kubectl-overview/) you can add the token to your current context:
-
-```bash
-TOKEN=$(kubectl describe secret $(kubectl get secrets | grep default | cut -f1 -d ' ') | grep -E '^token' | cut -f2 -d':' | tr -d '\t' | xargs)
-KUBE_USER=$(kubectl config get-contexts | grep "*" | awk -v N=4 '{print $N}')
-kubectl config set-credentials $KUBE_USER --token="$TOKEN"
-```
-
-### get executable
+### Option 1: get executable
 
 Go to [releases page](https://github.com/alitari/kubexp/releases) and download the binary for your platform.
 
@@ -55,15 +39,23 @@ wget https://github.com/alitari/kubexp/releases/download/${KUBEXP_RELEASE}/kubex
 chmod +x kubexp
 ```
 
-### command line options
+### Option 2: running with docker
 
-Call `kubexp -help`
+To run the kubexp container you need to mount the config file. Note, that when kubexp runs in a container the port-forward feature will not work.
 
-### first steps
+```bash
+KUBEXP_RELEASE="v0.6.1"
+docker run -it -v ~/.kube/config:/root/.kube/config alitari/kubexp:${KUBEXP_RELEASE}
+```
 
-Once the ui is up, you can press `h` for help.
+## Hints
 
-### building and running
+- use **arrow** keys to navigate and **return** key to toggle between the item list and item details
+- to get help in the user interface type **'h'**
+- hit **Space**-Key to reconnect when resource is OFFLINE
+- get command line options with `kubexp -help`
+
+## building and running
 
 set the GOOS environment variable according your os
 
@@ -85,14 +77,6 @@ bin/kubexp
 
 # execute tests
 go test main/..
-```
-
-### running with docker
-
-To run the kubexp container you need to mount the config file. Note, that when kubexp runs in a container the port-forward feature will not work.
-
-```bash
-docker run -it -v ~/.kube/config:/root/.kube/config alitari/kubexp:latest
 ```
 
 ## Credits
