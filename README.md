@@ -5,9 +5,9 @@
 
 kubexp is a console user interface for [kubernetes](https://kubernetes.io/).
 
-![browse](./pics/brwsr.png)
+![drwing](./pics/brwsr.png)
 
-### Features
+## Features
 
 - automatic update view when cluster changes
 - switch cluster
