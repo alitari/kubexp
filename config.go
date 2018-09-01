@@ -832,7 +832,7 @@ func (c *configType) createContexts() *configType {
 		tracelog.Print(mess)
 		errorStr, err := retrieveContextToken(&ct)
 		if err != nil {
-			mess := fmt.Sprintf("Skipping context %s, due to error: %v\nDetails:%s", ct.Name, err, errorStr)
+			mess := fmt.Sprintf("Skipping context %s, due to error: %v\n  Error Details:%s", ct.Name, err, errorStr)
 			fmt.Println(mess)
 			warninglog.Print(mess)
 		} else {

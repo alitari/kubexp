@@ -285,9 +285,8 @@ var gotoSelectContextStateCommand = commandType{Name: "Select context", f: func(
 	return nil
 }}
 
-var loadContextCommand = newLoadingCommand("reload context", commandType{Name: "sc", f: func(g *gocui.Gui, v *gocui.View) error {
-	newContext()
-	return nil
+var loadContextCommand = newLoadingCommand("reload context", commandType{Name: "new context", f: func(g *gocui.Gui, v *gocui.View) error {
+	return newContext()
 }})
 
 var nextContextCommand = commandType{Name: "Next context", f: func(g *gocui.Gui, v *gocui.View) error {

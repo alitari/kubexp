@@ -130,7 +130,7 @@ type backendType struct {
 func newBackend(cfg *configType, context contextType) *backendType {
 	return &backendType{cfg: cfg, context: context,
 		restExecutor: func(httpMethod, url, body string, timeout int) (*http.Response, error) {
-			tracelog.Printf("rest call: %s %s", httpMethod, url)
+
 			if body != "" {
 				tracelog.Printf("body: '%s'", body)
 			}
@@ -157,6 +157,7 @@ func newBackend(cfg *configType, context contextType) *backendType {
 			}
 
 			response, err := client.Do(req)
+			tracelog.Printf("rest call:\n  Method: %s\n  Url: %s\n Header: %v\n Response Status: %s( %d)", httpMethod, url, req.Header, response.Status, response.StatusCode)
 
 			return response, err
 		},
@@ -372,6 +373,15 @@ func (b *backendType) watch0(urlPrefix, urlPostfix, queryParam string) error {
 		errorlog.Printf("error watching resource %s : %v", urlPostfix, err)
 		return err
 	}
+	if resp.StatusCode != http.StatusOK {
+		mess := fmt.Sprintf("error watching resource %s: http status %s", urlPostfix, resp.Status)
+		if resp.StatusCode == http.StatusUnauthorized {
+			mess = mess + "\nPlease check your cluster rbac settings!"
+		}
+		errorlog.Printf(mess)
+		return fmt.Errorf(mess)
+	}
+
 	body := &resp.Body
 	go func() {
 		reader := bufio.NewReader(*body)

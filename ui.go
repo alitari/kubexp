@@ -408,17 +408,19 @@ func updateResourceItemDetailPart() {
 }
 
 func updateResourceItemList(reset bool) {
-	tracelog.Printf("update resource")
-	g.Update(func(gui *gocui.Gui) error {
-		if reset {
-			newResource()
-		} else {
-			res := selectedResource()
-			resourceItemsList.widget.items = backend.resourceItems(selectedNamespace(), res)
-			updateResourceItemsListTitle(res.Name)
-		}
-		return nil
-	})
+	if currentState.name == "browseState" {
+		tracelog.Printf("update resource")
+		g.Update(func(gui *gocui.Gui) error {
+			if reset {
+				newResource()
+			} else {
+				res := selectedResource()
+				resourceItemsList.widget.items = backend.resourceItems(selectedNamespace(), res)
+				updateResourceItemsListTitle(res.Name)
+			}
+			return nil
+		})
+	}
 }
 
 func updateNamespaces() {
@@ -555,8 +557,12 @@ func showLoading(command commandType, g *gocui.Gui, v *gocui.View) {
 	loadingWidget.setContent(co, tpl("loading", loadingTemplate))
 	setState(loadingState)
 	g.Update(func(gui *gocui.Gui) error {
-		command.f(g, v)
-		setState(browseState)
+		err := command.f(g, v)
+		if err != nil {
+			fatalStderrlog.Fatalf("Error in %s\n error :%s", command.Name, err.Error())
+		} else {
+			setState(browseState)
+		}
 		return nil
 	})
 }
@@ -607,11 +613,11 @@ func newResourceCategory() {
 func newContext() error {
 	ctx := cfg.contexts[clusterList.widget.selectedItem]
 	backend.closeWatches()
-	backend = newBackend(cfg, ctx)
+	newbackend := newBackend(cfg, ctx)
 
-	err := backend.createWatches()
+	err := newbackend.createWatches()
 	if err != nil {
-		showError(fmt.Sprintf("Can't connect to api server, url:%s ", backend.context.Cluster.URL), err)
+		return err
 	}
 	res := cfg.resourcesOfName("namespaces")
 	resItems := backend.resourceItems("", res)
