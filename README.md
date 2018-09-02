@@ -34,7 +34,7 @@ kubectl apply -f rbac-default-clusteradmin.yaml
 Go to [releases page](https://github.com/alitari/kubexp/releases) and download the binary for your platform.
 
 ```bash
-KUBEXP_RELEASE="v0.6.1"
+KUBEXP_RELEASE="v0.7.0"
 wget https://github.com/alitari/kubexp/releases/download/${KUBEXP_RELEASE}/kubexp
 chmod +x kubexp
 ```
@@ -44,7 +44,7 @@ chmod +x kubexp
 To run the kubexp container you need to mount the config file. Note, that when kubexp runs in a container the port-forward feature will not work.
 
 ```bash
-KUBEXP_RELEASE="v0.6.1"
+KUBEXP_RELEASE="v0.7.0"
 docker run -it -v ~/.kube/config:/root/.kube/config alitari/kubexp:${KUBEXP_RELEASE}
 ```
 
