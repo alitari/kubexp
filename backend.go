@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"os/exec"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -267,17 +268,11 @@ func (b *backendType) delete(ns string, resource resourceType, resourceItem stri
 	return unmarshall(rc), nil
 }
 
-func (b *backendType) scale(ns string, resource resourceType, deploymentName string, scale int) (interface{}, error) {
-	depDetail, err := b.restCall(http.MethodGet, "apis/extensions/v1beta1", fmt.Sprintf("%s/%s", resource.Name, deploymentName), ns, "")
-	if err != nil {
-		return depDetail, err
-	}
-	tracelog.Printf("depDetal=%s", depDetail)
-	spec := unmarshall(depDetail)["spec"]
-	replicas := spec.(map[string]interface{})["replicas"]
-	newReplicas := int(replicas.(float64)) + scale
+func (b *backendType) scale(ns string, resource resourceType, deploymentName string, spec interface{}, scale int) (interface{}, error) {
+	replicas, _ := strconv.Atoi(val1(spec, "{{.spec.replicas}}"))
+	newReplicas := replicas + scale
 	body := fmt.Sprintf(`{"spec":{ "replicas": %v }}`, newReplicas)
-	r, err := b.restCall(http.MethodPatch, "apis/extensions/v1beta1", fmt.Sprintf("%s/%s", resource.Name, deploymentName), ns, body)
+	r, err := b.restCall(http.MethodPatch, resource.APIPrefix, fmt.Sprintf("%s/%s", resource.Name, deploymentName), ns, body)
 	if err != nil {
 		return r, err
 	}

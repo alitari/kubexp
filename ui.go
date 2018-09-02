@@ -781,7 +781,8 @@ func scaleResource(replicas int) {
 	res := selectedResource()
 	rname := selectedResourceItemName()
 	ns := selectedResourceItemNamespace()
-	_, err := backend.scale(ns, res, rname, replicas)
+	resDetails := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
+	_, err := backend.scale(ns, res, rname, resDetails, replicas)
 	if err != nil {
 		showError(fmt.Sprintf("Can't scale %s on namespace %s with name '%s' ", res.Name, ns, rname), err)
 	}
