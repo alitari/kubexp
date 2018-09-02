@@ -340,7 +340,7 @@ No Data
 		Views: []viewType{
 			{
 				Name: "list",
-				Template: `{{- header "Status" . .status.phase | printf "%-10.10s " | colorPhase -}}
+				Template: `{{- header "Status" . ( podStatus .status ) | printf "%-10.10s " | colorPhase -}}
 ` + nameAgeColumns + `
 {{- header "PortForward" . ( portForwardPortsShort . )|  printf "%-6.6s " -}}
 {{- header "  R" . ( count ( fk .status.containerStatuses "ready" true )) | printf "%3.3s/" -}}

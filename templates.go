@@ -65,6 +65,7 @@ var templateFuncMap = template.FuncMap{
 	"nodeRes":               nodeRes,
 	"clusterRes":            clusterRes,
 	"status":                status,
+	"podStatus":             podStatus,
 	"portForwardPortsShort": portForwardPortsShort,
 	"portForwardPortsLong":  portForwardPortsLong,
 
@@ -311,15 +312,17 @@ func colorPhase(text string) string {
 	trimmed := strings.TrimSpace(text)
 	switch trimmed {
 	case "Pending":
-		return colorYellow(text)
+		fallthrough
+	case "Not ready":
+		return colorYellowEmp(text)
 	case "Running":
 		fallthrough
 	case "Succeeded":
-		return colorGreen(text)
+		return colorGreenEmp(text)
 	case "Failed":
 		fallthrough
 	case "Unknown":
-		return colorRed(text)
+		return colorRedEmp(text)
 	}
 	return text
 }
@@ -569,6 +572,24 @@ func status(desired, ready interface{}) string {
 		}
 	}
 	return "Succeeded"
+}
+
+var stsTmpl = `
+{{ range $ind, $cst := .containerStatuses }}
+{{- .ready  }},
+{{ end }}
+`
+
+func podStatus(status interface{}) string {
+	phase := val1(status, "{{ .phase }}")
+	if phase == "Running" {
+		sts := val1(status, stsTmpl)
+		if strings.Contains(sts, "false") {
+			return "Not ready"
+		}
+		return phase
+	}
+	return phase
 }
 
 func fromChildrenWhenEquals(it interface{}, equalsKey, equalsValue, returnValueKey string) string {
