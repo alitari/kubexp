@@ -72,7 +72,7 @@ var initState = stateType{
 	},
 	exitFunc: func(toState stateType) {
 		clusterList.widget.items = toIfc(cfg.contexts)
-		err := backend.createWatches()
+		err := backend.createWatches(cfg.resources)
 		if err != nil {
 			errorlog.Panicf("Can't connect to api server. url:%s, error: %v", backend.context.Cluster.URL, err)
 		}
@@ -300,7 +300,7 @@ func Run() {
 	cfg = newConfig(*configFile)
 	ctx := cfg.contexts[0]
 	resourceCategories = cfg.allResourceCategories()
-	backend = newBackend(cfg, ctx)
+	backend = newBackend(ctx)
 	go commandRunner()
 	currentState = initState
 
@@ -607,9 +607,9 @@ func newResourceCategory() {
 func newContext() error {
 	ctx := cfg.contexts[clusterList.widget.selectedItem]
 	backend.closeWatches()
-	backend = newBackend(cfg, ctx)
+	backend = newBackend(ctx)
 
-	err := backend.createWatches()
+	err := backend.createWatches(cfg.resources)
 	if err != nil {
 		showError(fmt.Sprintf("Can't connect to api server, url:%s ", backend.context.Cluster.URL), err)
 	}
@@ -624,11 +624,11 @@ func newContext() error {
 	return nil
 }
 
-func retrieveContextToken(ctx *contextType) (string, error) {
+func retrieveContextToken(ctx *contextType) error {
 	cmd := kubectl(ctx.Name, "get", "secret")
 	out, errorStr, err := runCmd(cmd)
 	if err != nil {
-		return errorStr, err
+		return fmt.Errorf("Error running command '%v': %s\n Details: %s", cmd.Args, err.Error(), errorStr)
 	}
 	var tokenSecretName string
 	for _, l := range strings.Split(string(out), "\n") {
@@ -642,19 +642,19 @@ func retrieveContextToken(ctx *contextType) (string, error) {
 	cmd = kubectl(ctx.Name, "get", "secret", tokenSecretName, "-o", "json")
 	out, errorStr, err = runCmd(cmd)
 	if err != nil {
-		return errorStr, err
+		return fmt.Errorf("Error running command '%v': %v\n Details: %s", cmd.Args, err, errorStr)
 	}
 
 	tokenSecret := unmarshall(out)
 	tokenB64 := val1(tokenSecret, "{{.data.token}}")
 	token, err := base64.StdEncoding.DecodeString(tokenB64)
 	if err != nil {
-		return "", err
+		return err
 	}
 	tokenStr := string(token)
 	tracelog.Printf(" retrieved token for context '%s'...", ctx.Name)
 	ctx.user.token = tokenStr
-	return "", nil
+	return nil
 }
 
 func startFiletransfer(isUpload bool) {

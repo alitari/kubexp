@@ -822,27 +822,38 @@ func (c *configType) createContexts() *configType {
 	contexts := cfg["contexts"].([]interface{})
 	cs := make([]contextType, 0)
 	for i, ctx := range contexts {
-		tracelog.Printf("context: '%v' ", ctx)
 		cmap := ctx.(map[interface{}]interface{})
 		cluster := c.parseCluster(cfg, cmap["context"])
-		user, err := c.parseUser(cfg, cmap["context"])
+		user := c.parseUser(cfg, cmap["context"])
 		ct := contextType{Name: cmap["name"].(string), Cluster: cluster, user: user}
-		mess := fmt.Sprintf("try connecting context '%s'...", ct.Name)
+		mess := fmt.Sprintf("try connecting context '%s', cluster: '%s' ...", ct.Name, cluster.Name)
 		fmt.Println(mess)
-		tracelog.Print(mess)
-		errorStr, err := retrieveContextToken(&ct)
+		infolog.Print(mess)
+		if ct.user.token == "<no value>" {
+			fmt.Print("retrieving token from secret ...")
+			infolog.Print("retrieving token from secret ...")
+			err := retrieveContextToken(&ct)
+			if err != nil {
+				mess := fmt.Sprintf("Skipping context %s, due to error: %s", ct.Name, err.Error())
+				fmt.Println(mess)
+				warninglog.Print(mess)
+				break
+			}
+		}
+		err = c.isAvailable(ct)
 		if err != nil {
-			mess := fmt.Sprintf("Skipping context %s, due to error: %v\nDetails:%s", ct.Name, err, errorStr)
+			mess := fmt.Sprintf("Skipping context %s, due to error: %s", ct.Name, err.Error())
 			fmt.Println(mess)
 			warninglog.Print(mess)
-		} else {
-			colorIndex := len(cs) % 4
-			ct.color = contextColors[colorIndex]
-			cs = append(cs, ct)
-			mess := fmt.Sprintf("created context no %d with name '%s' ", i+1, ct.Name)
-			fmt.Println(mess)
-			tracelog.Print(mess)
+			break
 		}
+
+		colorIndex := len(cs) % 4
+		ct.color = contextColors[colorIndex]
+		cs = append(cs, ct)
+		mess = fmt.Sprintf("created context no %d with name '%s' ", i+1, ct.Name)
+		fmt.Println(mess)
+		infolog.Print(mess)
 	}
 	if len(cs) == 0 {
 		fatalStderrlog.Fatalf("No contexts created for configfile '%s'. See logfile '%s' for details.", c.configFile, *logFilePath)
@@ -851,15 +862,13 @@ func (c *configType) createContexts() *configType {
 	return c
 }
 
-func (c *configType) isAvailable(ct contextType) bool {
-	be := newBackend(c, ct)
-	err := be.availabiltyCheck()
-	return err == nil
+func (c *configType) isAvailable(ct contextType) error {
+	be := newBackend(ct)
+	return be.availabiltyCheck()
 }
 
 func (c *configType) parseCluster(cfg map[string]interface{}, cm interface{}) clusterType {
 	clusterName := val1(cm, "{{.cluster}}")
-	tracelog.Printf("clusterName: %s", clusterName)
 	if len(clusterName) == 0 {
 		errorlog.Fatalf("No cluster found in context %v", cm)
 	}
@@ -875,14 +884,14 @@ func (c *configType) parseCluster(cfg map[string]interface{}, cm interface{}) cl
 	return clusterType{Name: clusterName, URL: url}
 }
 
-func (c *configType) parseUser(cfg map[string]interface{}, cm interface{}) (userType, error) {
+func (c *configType) parseUser(cfg map[string]interface{}, cm interface{}) userType {
 	userName := val1(cm, "{{.user}}")
 	if len(userName) == 0 {
 		errorlog.Fatalf("No user found in context %v", cm)
 	}
 	user := filterArrayOnKeyValue(cfg["users"], "name", userName).([]interface{})[0]
 	token := val1(user, "{{.user.token}}")
-	return userType{Name: userName, token: token}, nil
+	return userType{Name: userName, token: token}
 }
 
 func homeDir() string {

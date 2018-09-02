@@ -116,7 +116,6 @@ type watchType struct {
 }
 
 type backendType struct {
-	cfg                  *configType
 	context              contextType
 	resItems             map[string][]interface{}
 	podLogs              []byte
@@ -127,10 +126,9 @@ type backendType struct {
 	clusterLivenessDone  chan bool
 }
 
-func newBackend(cfg *configType, context contextType) *backendType {
-	return &backendType{cfg: cfg, context: context,
+func newBackend(context contextType) *backendType {
+	return &backendType{context: context,
 		restExecutor: func(httpMethod, url, body string, timeout int) (*http.Response, error) {
-			tracelog.Printf("rest call: %s %s", httpMethod, url)
 			if body != "" {
 				tracelog.Printf("body: '%s'", body)
 			}
@@ -157,6 +155,7 @@ func newBackend(cfg *configType, context contextType) *backendType {
 			}
 
 			response, err := client.Do(req)
+			tracelog.Printf("rest call: %s %s , response status: %s", httpMethod, url, response.Status)
 
 			return response, err
 		},
@@ -195,10 +194,10 @@ func (b *backendType) resourceItems(ns string, rt resourceType) []interface{} {
 	return ele
 }
 
-func (b *backendType) createWatches() error {
+func (b *backendType) createWatches(resources []resourceType) error {
 	b.resItems = map[string][]interface{}{}
 	b.watches = map[string]*watchType{}
-	for _, res := range cfg.resources {
+	for _, res := range resources {
 		if res.Watch {
 			err := b.watch(res.APIPrefix, res.Name)
 			if err != nil {
@@ -372,6 +371,14 @@ func (b *backendType) watch0(urlPrefix, urlPostfix, queryParam string) error {
 		errorlog.Printf("error watching resource %s : %v", urlPostfix, err)
 		return err
 	}
+	if resp.StatusCode != http.StatusOK {
+		mess := fmt.Sprintf("error watching resource %s: http status %s", urlPostfix, resp.Status)
+		if resp.StatusCode == http.StatusUnauthorized {
+			mess = mess + "\nPlease check your cluster rbac settings!"
+		}
+		errorlog.Printf(mess)
+		return fmt.Errorf(mess)
+	}
 	body := &resp.Body
 	go func() {
 		reader := bufio.NewReader(*body)
@@ -495,6 +502,7 @@ func runCmd(cmd *exec.Cmd) (string, string, error) {
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 	err := cmd.Run()
+
 	return out.String(), stderr.String(), err
 }
 
