@@ -53,6 +53,7 @@ docker run -it -v ~/.kube/config:/root/.kube/config alitari/kubexp:${KUBEXP_RELE
 - use **arrow** keys to navigate and **return** key to toggle between the item list and item details
 - to get help in the user interface type **'h'**
 - hit **Space**-Key to reconnect when resource is OFFLINE
+- resources in the menu are organized in categories, hit **'r'** to change the category
 - get command line options with `kubexp -help`
 
 ## building and running
