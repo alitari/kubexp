@@ -829,6 +829,7 @@ func (c *configType) createContexts() *configType {
 		mess := fmt.Sprintf("try connecting context '%s', cluster: '%s' ...", ct.Name, cluster.Name)
 		fmt.Println(mess)
 		infolog.Print(mess)
+		var skip = false
 		if ct.user.token == "<no value>" {
 			fmt.Print("retrieving token from secret ...")
 			infolog.Print("retrieving token from secret ...")
@@ -837,23 +838,26 @@ func (c *configType) createContexts() *configType {
 				mess := fmt.Sprintf("Skipping context %s, due to error: %s", ct.Name, err.Error())
 				fmt.Println(mess)
 				warninglog.Print(mess)
-				break
+				skip = true
 			}
 		}
-		err = c.isAvailable(ct)
-		if err != nil {
-			mess := fmt.Sprintf("Skipping context %s, due to error: %s", ct.Name, err.Error())
-			fmt.Println(mess)
-			warninglog.Print(mess)
-			break
+		if !skip {
+			err = c.isAvailable(ct)
+			if err != nil {
+				mess := fmt.Sprintf("Skipping context %s, due to error: %s", ct.Name, err.Error())
+				fmt.Println(mess)
+				warninglog.Print(mess)
+				skip = true
+			}
 		}
-
-		colorIndex := len(cs) % 4
-		ct.color = contextColors[colorIndex]
-		cs = append(cs, ct)
-		mess = fmt.Sprintf("created context no %d with name '%s' ", i+1, ct.Name)
-		fmt.Println(mess)
-		infolog.Print(mess)
+		if !skip {
+			colorIndex := len(cs) % 4
+			ct.color = contextColors[colorIndex]
+			cs = append(cs, ct)
+			mess = fmt.Sprintf("created context no %d with name '%s' ", i+1, ct.Name)
+			fmt.Println(mess)
+			infolog.Print(mess)
+		}
 	}
 	if len(cs) == 0 {
 		fatalStderrlog.Fatalf("No contexts created for configfile '%s'. See logfile '%s' for details.", c.configFile, *logFilePath)

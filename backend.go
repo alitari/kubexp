@@ -156,7 +156,9 @@ func newBackend(context contextType) *backendType {
 			}
 
 			response, err := client.Do(req)
-			tracelog.Printf("rest call: %s %s , response status: %s", httpMethod, url, response.Status)
+			if err == nil {
+				tracelog.Printf("rest call: %s %s , response status: %s", httpMethod, url, response.Status)
+			}
 
 			return response, err
 		},
