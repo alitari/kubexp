@@ -21,6 +21,8 @@ kubexp is a console user interface for [kubernetes](https://kubernetes.io/).
 
 ## Installation
 
+You need a shell with access to kubernetes through [kubectl](https://kubernetes.io/docs/reference/kubectl/kubectl/). Kubexp uses the same configuration file (usually `~.kube/config`) to connect to the k8s cluster(s). 
+
 ### rbac
 
 Your [service account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/) must have a rolebinding to cluster admin in each k8s cluster. The file [rbac-default-clusteradmin.yaml](./rbac-default-clusteradmin.yaml) contains the according [clusterrolebinding](<(https://kubernetes.io/docs/admin/authorization/rbac/#kubectl-create-clusterrolebinding)>) for the default service account:
@@ -28,6 +30,8 @@ Your [service account](https://kubernetes.io/docs/tasks/configure-pod-container/
 ```bash
 kubectl apply -f rbac-default-clusteradmin.yaml
 ```
+
+
 
 ### Option 1: get executable
 
