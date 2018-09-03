@@ -366,7 +366,7 @@ func parseFlags() {
 	logFilePath = flag.String("logFile", "./kubexp.log", "fullpath to log file, set empty ( -logFile='') if no logfile should be used")
 	flag.IntVar(&portforwardStartPort, "portForwardStartPort", 32100, "start of portforward range")
 	flag.IntVar(&restCallTimeout, "restCallTimeout", 3, "time out for rest calls in seconds")
-	flag.IntVar(&kubeCtlTimeout, "kubectlTimeout", 3, "time out for kubectl calls in seconds")
+	flag.IntVar(&kubeCtlTimeout, "kubectlTimeout", 5, "time out for kubectl calls in seconds")
 
 	flag.IntVar(&clusterLivenessPeriod, "clusterLivenessPeriod", 5, "cluster liveness check period in seconds")
 
