@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"text/template"
 
-	"github.com/jroimartin/gocui"
+	"github.com/alitari/gocui"
 )
 
 const inlineColorStart = "\033[3%d;%dm"
@@ -329,7 +329,8 @@ func (w *textWidget) Layout(g *gocui.Gui) error {
 	}
 	col, line := v.Origin()
 	if w.showPos {
-		v.Title = fmt.Sprintf("%s    [col:%v line:%v/%v]", w.title, col, line, lc)
+		v.Title = fmt.Sprintf("%s", w.title)
+		v.Footer = fmt.Sprintf(" col:%v line:%v/%v ", col, line, lc)
 	} else {
 		v.Title = fmt.Sprintf("%s", w.title)
 	}
@@ -436,8 +437,9 @@ func (w *textWidget) update() {
 }
 
 type selWidget struct {
-	name          string
-	title         string
+	name  string
+	title string
+	// footer        string
 	visible       bool
 	expandable    bool
 	x, y, w, h    int
@@ -496,7 +498,8 @@ func (w *selWidget) Layout(g *gocui.Gui) error {
 	if w.frame {
 		v.Frame = true
 		if len(w.items) > w.limitFunc(w) {
-			v.Title = fmt.Sprintf(w.title+"   page: %d/%d", w.selectedPage+1, w.pc())
+			v.Title = fmt.Sprintf("%s", w.title)
+			v.Footer = fmt.Sprintf("page: %d/%d", w.selectedPage+1, w.pc())
 		} else {
 			v.Title = w.title
 		}

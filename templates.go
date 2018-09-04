@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/jroimartin/gocui"
+	"github.com/alitari/gocui"
 	yaml "gopkg.in/yaml.v2"
 )
 

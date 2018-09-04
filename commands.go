@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/jroimartin/gocui"
+	"github.com/alitari/gocui"
 )
 
 type commandType struct {

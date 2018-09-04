@@ -10,7 +10,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jroimartin/gocui"
+	"github.com/alitari/gocui"
 	"github.com/stretchr/testify/require"
 )
 

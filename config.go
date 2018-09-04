@@ -56,7 +56,7 @@ type viewType struct {
 	Template string
 }
 
-var clusterResourcesTemplate = `{{ "capacity:" | contextColorEmp }} {{ .Capacity.String | contextColor }}  {{ "cpu:" | contextColorEmp }} {{ .Requested.CPU.String | contextColor}}({{ .PercentCPU | contextColor }}) {{ "memory:" | contextColorEmp }} {{ .Requested.Memory.String | contextColor}}({{ .PercentMem | contextColor }})`
+var clusterResourcesTemplate = `{{ "capacity:" | contextColorEmp }} {{ .Capacity.String }}  {{ "cpu:" | contextColorEmp }} {{ .Requested.CPU.String }}({{ .PercentCPU }}) {{ "memory:" | contextColorEmp }} {{ .Requested.Memory.String }}({{ .PercentMem }})`
 
 var helpTemplate = colorizeText(fmt.Sprintf(`
      _  __    _         ___          _                 

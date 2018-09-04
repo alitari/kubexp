@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jroimartin/gocui"
+	"github.com/alitari/gocui"
 )
 
 /* local variables naming conventions:
@@ -72,6 +72,10 @@ var initState = stateType{
 	},
 	exitFunc: func(toState stateType) {
 		clusterList.widget.items = toIfc(cfg.contexts)
+		contextColor := strToColor(cfg.contexts[0].color)
+		g.FrameFgColor = contextColor
+		g.FrameBgColor = gocui.ColorBlack
+
 		err := backend.createWatches(cfg.resources)
 		if err != nil {
 			errorlog.Panicf("Can't connect to api server. url:%s, error: %v", backend.context.Cluster.URL, err)
@@ -608,6 +612,10 @@ func newContext() error {
 	ctx := cfg.contexts[clusterList.widget.selectedItem]
 	backend.closeWatches()
 	backend = newBackend(ctx)
+
+	contextColor := strToColor(ctx.color)
+	g.FrameFgColor = contextColor
+	g.FrameBgColor = gocui.ColorBlack
 
 	err := backend.createWatches(cfg.resources)
 	if err != nil {
