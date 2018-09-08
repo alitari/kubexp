@@ -270,7 +270,7 @@ func (w *searchWidget) Layout(g *gocui.Gui) error {
 
 type textWidget struct {
 	visible, active, showPos bool
-	name, title              string
+	name, title, footer      string
 	x, y                     int
 	w, h                     int
 	wrap                     bool
@@ -329,8 +329,8 @@ func (w *textWidget) Layout(g *gocui.Gui) error {
 	}
 	col, line := v.Origin()
 	if w.showPos {
-		v.Title = fmt.Sprintf("%s", w.title)
-		v.Footer = fmt.Sprintf(" col:%v line:%v/%v ", col, line, lc)
+		v.Title = fmt.Sprintf("%s     col:%v line:%v/%v", w.title, col, line, lc)
+		v.Footer = w.footer
 	} else {
 		v.Title = fmt.Sprintf("%s", w.title)
 	}
@@ -437,9 +437,9 @@ func (w *textWidget) update() {
 }
 
 type selWidget struct {
-	name  string
-	title string
-	// footer        string
+	name          string
+	title         string
+	footer        string
 	visible       bool
 	expandable    bool
 	x, y, w, h    int
@@ -498,11 +498,11 @@ func (w *selWidget) Layout(g *gocui.Gui) error {
 	if w.frame {
 		v.Frame = true
 		if len(w.items) > w.limitFunc(w) {
-			v.Title = fmt.Sprintf("%s", w.title)
-			v.Footer = fmt.Sprintf("page: %d/%d", w.selectedPage+1, w.pc())
+			v.Title = fmt.Sprintf("%-30.30s  page: %d/%d", w.title, w.selectedPage+1, w.pc())
 		} else {
 			v.Title = w.title
 		}
+		v.Footer = fmt.Sprintf("%s", w.footer)
 	}
 
 	if w.headerItem != nil {
