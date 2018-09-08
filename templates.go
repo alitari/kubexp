@@ -615,7 +615,7 @@ func keyString(keyEvent interface{}) string {
 		case gocui.KeyTab:
 			keyStr = "Tab"
 		case gocui.KeyArrowDown:
-			keyStr = "ArrowDown"
+			keyStr = "↓"
 		case gocui.KeyArrowRight:
 			keyStr = "ArrowRight"
 		case gocui.KeyArrowLeft:
@@ -654,6 +654,8 @@ func keyString(keyEvent interface{}) string {
 			} else {
 				keyStr = "Delete"
 			}
+		default:
+			keyStr = fmt.Sprintf("%c", k)
 		}
 
 	case rune:

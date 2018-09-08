@@ -19,6 +19,7 @@ type keyEventType struct {
 }
 
 type keyBindingType struct {
+	show     bool
 	KeyEvent keyEventType
 	Command  commandType
 }
@@ -430,10 +431,38 @@ var nextContainerFiletransferCommand = commandType{Name: "Next container", f: fu
 	return nil
 }}
 
-func bindKey(g *gocui.Gui, keyBind keyEventType, command commandType) {
+func bindKey(g *gocui.Gui, show bool, keyBind keyEventType, command commandType) {
 	if err := g.SetKeybinding(keyBind.Viewname, keyBind.Key, keyBind.mod, command.f); err != nil {
 		errorlog.Panicln(err)
 	}
-	kb := keyBindingType{keyBind, command}
+	kb := keyBindingType{show, keyBind, command}
+	tracelog.Print(kbToText(kb))
 	keyBindings = append(keyBindings, kb)
+}
+
+func filterKeyBindings(filter func(kb keyBindingType) bool) []keyBindingType {
+	result := []keyBindingType{}
+	for _, k := range keyBindings {
+		if filter(k) {
+			result = append(result, k)
+		}
+	}
+	return result
+}
+
+func keyBindingsForView(viewName string) string {
+	kbs := filterKeyBindings(func(kb keyBindingType) bool {
+		return viewName == kb.KeyEvent.Viewname && kb.show
+	})
+	res := ""
+	for _, kb := range kbs {
+		res = res + "," + kbToText(kb)
+	}
+	return res
+}
+
+func kbToText(kb keyBindingType) string {
+	k := kb.KeyEvent
+	cmd := kb.Command.Name
+	return fmt.Sprintf("%s %s", keyString(k), cmd)
 }
