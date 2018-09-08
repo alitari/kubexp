@@ -71,6 +71,7 @@ var exitFooter = "*Ctrl-C*=exit"
 var delResourceFooter = "*DELETE*=delete resource"
 var podsFooter = "*u*=upload *d*=download *1-6*=exec container *p*=port forward"
 var scaleFooter = "*+*,*-*=scale up/down"
+var changeContainerFooter = "*Ctrl-o*=change container"
 
 var currentState stateType
 
@@ -108,7 +109,7 @@ var selectNsState = stateType{
 	name: "selectNsState",
 	enterFunc: func(fromState stateType) {
 		namespaceList.widget.focus = true
-		namespaceList.widget.footer = setSelectionFooter + " " + listSelectFooter + " " + exitFooter
+		namespaceList.widget.footer = setSelectionFooter + " " + listSelectFooter
 	},
 	exitFunc: func(toState stateType) {
 		namespaceList.widget.focus = false
@@ -199,7 +200,11 @@ var fileState = stateType{
 		details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
 		selectedContainerIndex = 0
 		containerNames = resItemContainers(details)
-		fileList.widget.footer = setFileSelectionFooter + " " + listSelectFooter + " " + exitFooter
+		if len(containerNames) > 1 {
+			fileList.widget.footer = changeContainerFooter + " " + setFileSelectionFooter + " " + listSelectFooter + " " + exitFooter
+		} else {
+			fileList.widget.footer = setFileSelectionFooter + " " + listSelectFooter + " " + exitFooter
+		}
 	},
 	exitFunc: func(fromState stateType) {
 		fileList.widget.visible = false
@@ -925,6 +930,13 @@ func setResourceItemDetailsPart() {
 		containerNames = resItemContainers(details)
 		backend.watchPodLogs(resItemNamespace(details), rname, containerNames[selectedContainerIndex])
 		tracelog.Printf("containerNames: %v", containerNames)
+		if len(containerNames) > 1 {
+			resourceItemDetailsWidget.footer = changeContainerFooter + " " + scrollLineFooter + " " + scrollLeftRightFooter + " " + scrollPageFooter + " " + backToListFooter
+		} else {
+			resourceItemDetailsWidget.footer = scrollLineFooter + " " + scrollLeftRightFooter + " " + scrollPageFooter + " " + backToListFooter
+		}
+	} else {
+		resourceItemDetailsWidget.footer = scrollLineFooter + " " + scrollLeftRightFooter + " " + scrollPageFooter + " " + backToListFooter
 	}
 	reloadResourceItemDetailsPart()
 }
@@ -1079,7 +1091,6 @@ func bindKeys() {
 	bindKey(g, false, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextNamespaceCommand)
 	bindKey(g, false, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextNamespacePageCommand)
 	bindKey(g, false, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousNamespacePageCommand)
-	bindKey(g, false, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyCtrlC, mod: gocui.ModNone}, quitWidgetCommand)
 
 	bindKey(g, false, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, loadContextCommand)
 	bindKey(g, false, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousContextCommand)
