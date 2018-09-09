@@ -72,6 +72,7 @@ var delResourceFooter = "*DELETE*=delete resource"
 var podsFooter = "*u*=upload *d*=download *1-6*=exec container *p*=port forward"
 var scaleFooter = "*+*,*-*=scale up/down"
 var changeContainerFooter = "*Ctrl-o*=change container"
+var reloadFooter = "*SPACE*=reload"
 
 var currentState stateType
 
@@ -184,7 +185,7 @@ var helpState = stateType{
 		helpWidget.active = true
 		helpWidget.visible = true
 		helpWidget.setContent(keyBindings, tpl("help", helpTemplate))
-		helpWidget.footer = backToListFooter + " " + scrollPageFooter + " " + scrollLineFooter
+		helpWidget.footer = backToListFooter + " " + scrollLineFooter
 	},
 	exitFunc: func(fromState stateType) {
 		helpWidget.active = false
@@ -544,7 +545,7 @@ func createWidgets() {
 }
 
 func updateResourceItemsListFooter() {
-	resourceItemsList.widget.footer = delResourceFooter + " " + listSelectFooter + " " + detailsViewFooter + " " + exitFooter
+	resourceItemsList.widget.footer = delResourceFooter + " " + listSelectFooter + " " + detailsViewFooter + " " + reloadFooter + " " + exitFooter
 	if resourceItemsList.widget.pc() > 1 {
 		resourceItemsList.widget.footer = pageSelectFooter + " " + resourceItemsList.widget.footer
 	}
