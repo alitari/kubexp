@@ -328,9 +328,9 @@ func (w *textWidget) Layout(g *gocui.Gui) error {
 		panic(err)
 	}
 	col, line := v.Origin()
+	v.Footer = w.footer
 	if w.showPos {
 		v.Title = fmt.Sprintf("%s     col:%v line:%v/%v", w.title, col, line, lc)
-		v.Footer = w.footer
 	} else {
 		v.Title = fmt.Sprintf("%s", w.title)
 	}
