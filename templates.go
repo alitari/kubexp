@@ -94,9 +94,10 @@ var templateFuncMap = template.FuncMap{
 	"whiteEmp": colorWhiteEmp,
 	"whiteInv": colorWhiteInverse,
 
-	"contextColor":    colorContext,
-	"contextColorEmp": colorContextEmp,
-	"colorPhase":      colorPhase,
+	"contextColor":     colorContext,
+	"contextColorEmp":  colorContextEmp,
+	"colorPhase":       colorPhase,
+	"blinkWhenChanged": blinkWhenChanged,
 }
 
 func header(header string, rootVal, val interface{}) interface{} {
@@ -746,5 +747,18 @@ func filterArray(it interface{}, f func(item interface{}) bool) interface{} {
 }
 
 func printMap(it interface{}) string {
-	return stripMap(fmt.Sprintf("%s", it))
+	return printArray(keys(it))
+}
+
+func isObjInChangedList(it interface{}, resName string) bool {
+	id := fmt.Sprintf("%s/%s/%s", resItemNamespace(it), resName, resItemName(it))
+	res := backend.changedObjSet[id]
+	return res
+}
+
+func blinkWhenChanged(it interface{}, resName string, text string) string {
+	if isObjInChangedList(it, resName) && backend.blink {
+		return strings.Repeat(" ", len(text))
+	}
+	return text
 }
