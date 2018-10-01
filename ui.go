@@ -447,7 +447,6 @@ func updateResourceItemDetailPart() {
 }
 
 func updateResourceItemList(reset bool) {
-	tracelog.Printf("update resource")
 	g.Update(func(gui *gocui.Gui) error {
 		if reset {
 			newResource()
@@ -645,7 +644,7 @@ func nextResourceCategory(offset int) {
 
 func newResourceCategory() {
 	resCat := resourceCategories[selectedResourceCategoryIndex]
-	resourceMenu.widget.title = fmt.Sprintf("[R]esources - %s", resCat)
+	resourceMenu.widget.title = fmt.Sprintf("Resources - %s", resCat)
 	namespaceList.widget.visible = resCat != "cluster/metadata"
 
 	resourceMenu.widget.selectedItem = 0
