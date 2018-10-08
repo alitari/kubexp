@@ -262,10 +262,6 @@ var defaultResources = []resourceType{
 				Name:     "list",
 				Template: nameAgeColumns,
 			},
-			viewType{
-				Name:     "info",
-				Template: labelsAndAnnoTemplate,
-			},
 			infoView,
 			yamlView,
 			jsonView,
