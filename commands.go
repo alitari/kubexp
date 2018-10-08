@@ -2,7 +2,6 @@ package kubexp
 
 import (
 	"fmt"
-	"os/exec"
 
 	"github.com/alitari/gocui"
 )
@@ -49,7 +48,7 @@ func newExecCommand(name, cmd string, containerNr int) commandType {
 			containerNr = 0
 		}
 
-		cmd := exec.Command("kubectl", "-n", ns, "exec", "-c", containerNames[containerNr], "-it", rname, cmd)
+		cmd := kubectl(backend.context.Name, "-n", ns, "exec", "-c", containerNames[containerNr], "-it", rname, cmd)
 
 		exe <- cmd
 		return gocui.ErrQuit
@@ -436,7 +435,6 @@ func bindKey(g *gocui.Gui, show bool, keyBind keyEventType, command commandType)
 		errorlog.Panicln(err)
 	}
 	kb := keyBindingType{show, keyBind, command}
-	tracelog.Print(kbToText(kb))
 	keyBindings = append(keyBindings, kb)
 }
 
