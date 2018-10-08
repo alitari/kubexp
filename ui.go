@@ -54,25 +54,26 @@ var contextColorFunc = func(item interface{}) gocui.Attribute {
 	return strToColor(context.color)
 }
 
-var clusterChangeFooter = "*C*=change"
-var namespaceChangeFooter = "*N*=change"
-var categoryChangeFooter = "*R*=change category"
+var clusterChangeFooter = "*c*=change"
+var namespaceChangeFooter = "*n*=change"
+var categoryChangeFooter = "*r*=change category"
 var menuSelectFooter = "*←*,*→*=select"
 var listSelectFooter = "*↑*,*↓*=select"
 var pageSelectFooter = "*⭻*,*⭽*=select Page"
 var scrollLineFooter = "*↑*,*↓*=scroll up/down"
 var scrollPageFooter = "*⭻*,*⭽*=page previous/next"
-var scrollLeftRightFooter = "*Ctrl-A*=Scroll left *Ctrl-D*=Scroll right"
+var scrollLeftRightFooter = "*Ctrl-a*=Scroll left *Ctrl-d*=Scroll right"
 var detailsViewFooter = "*RETURN*=show details"
 var backToListFooter = "*RETURN*=back to list"
 var setSelectionFooter = "*RETURN*=set"
 var setFileSelectionFooter = "*RETURN*=step in or set"
-var exitFooter = "*Ctrl-C*=exit"
+var exitFooter = "*Ctrl-c*=exit"
 var delResourceFooter = "*DELETE*=delete resource"
 var podsFooter = "*u*=upload *d*=download *1-6*=exec container *p*=port forward"
 var scaleFooter = "*+*,*-*=scale up/down"
 var changeContainerFooter = "*Ctrl-o*=change container"
 var reloadFooter = "*SPACE*=reload"
+var helpFooter = "*h*=help"
 
 var currentState stateType
 
@@ -92,9 +93,9 @@ var initState = stateType{
 	},
 	exitFunc: func(toState stateType) {
 		clusterList.widget.items = toIfc(cfg.contexts)
-		contextColor := strToColor(cfg.contexts[0].color)
-		g.FrameFgColor = contextColor
-		g.FrameBgColor = gocui.ColorBlack
+		// contextColor := strToColor(cfg.contexts[0].color)
+		// g.FrameFgColor = contextColor
+		// g.FrameBgColor = gocui.ColorBlack
 
 		err := backend.createWatches(cfg.resources)
 		if err != nil {
@@ -394,6 +395,11 @@ func initGui() {
 		newResourceCategory()
 	}
 
+	ctx := cfg.contexts[clusterList.widget.selectedItem]
+	contextColor := strToColor(ctx.color)
+	g.FrameFgColor = contextColor
+	g.FrameBgColor = gocui.ColorBlack
+
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		errorlog.Printf("error in mail loop: %v", err)
 	}
@@ -421,7 +427,10 @@ func selectedResource() resourceType {
 }
 
 func selectedResourceItemDetailsView() viewType {
-	return resourcesItemDetailsMenu.widget.items[resourcesItemDetailsMenu.widget.selectedItem].(viewType)
+	if len(resourcesItemDetailsMenu.widget.items) > resourcesItemDetailsMenu.widget.selectedItem {
+		return resourcesItemDetailsMenu.widget.items[resourcesItemDetailsMenu.widget.selectedItem].(viewType)
+	}
+	return resourcesItemDetailsMenu.widget.items[0].(viewType)
 }
 
 func selectedResourceItemName() string {
@@ -439,7 +448,9 @@ func selectedResourceItemNamespace() string {
 }
 
 func updateResourceItemDetailPart() {
-	//tracelog.Printf("update resource item details")
+	if g == nil {
+		return
+	}
 	g.Update(func(gui *gocui.Gui) error {
 		reloadResourceItemDetailsPart()
 		return nil
@@ -447,6 +458,9 @@ func updateResourceItemDetailPart() {
 }
 
 func updateResourceItemList(reset bool) {
+	if g == nil {
+		return
+	}
 	g.Update(func(gui *gocui.Gui) error {
 		if reset {
 			newResource()
@@ -544,7 +558,7 @@ func createWidgets() {
 }
 
 func updateResourceItemsListFooter() {
-	resourceItemsList.widget.footer = delResourceFooter + " " + listSelectFooter + " " + detailsViewFooter + " " + reloadFooter + " " + exitFooter
+	resourceItemsList.widget.footer = delResourceFooter + " " + listSelectFooter + " " + detailsViewFooter + " " + reloadFooter + " " + helpFooter + " " + exitFooter
 	if resourceItemsList.widget.pc() > 1 {
 		resourceItemsList.widget.footer = pageSelectFooter + " " + resourceItemsList.widget.footer
 	}
