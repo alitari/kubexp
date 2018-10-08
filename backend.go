@@ -53,14 +53,9 @@ func (s *nameSorterType) getElements() []interface{} {
 }
 
 func (s *nameSorterType) Less(i, j int) bool {
-	iName := resItemName(s.elements[i])
-	jName := resItemName(s.elements[j])
-	var res bool
-	if len(iName) > 0 && len(jName) > 0 {
-		res = strings.Compare(iName, jName) < 0
-	} else {
-		res = i < j
-	}
+	iName := fmt.Sprintf("%s/%s", resItemName(s.elements[i]), resItemNamespace(s.elements[i]))
+	jName := fmt.Sprintf("%s/%s", resItemName(s.elements[j]), resItemNamespace(s.elements[j]))
+	res := strings.Compare(iName, jName) < 0
 	return (s.ascending && res) || (!s.ascending && !res)
 }
 
@@ -110,7 +105,9 @@ func (s *timeSorterType) Less(i, j int) bool {
 			res = jtime.After(itime)
 		}
 	} else {
-		res = i < j
+		iName := fmt.Sprintf("%s/%s", resItemName(s.elements[i]), resItemNamespace(s.elements[i]))
+		jName := fmt.Sprintf("%s/%s", resItemName(s.elements[j]), resItemNamespace(s.elements[j]))
+		res = strings.Compare(iName, jName) < 0
 	}
 	return (s.ascending && res) || (!s.ascending && !res)
 }
@@ -222,6 +219,7 @@ func (b *backendType) createWatches(resources []resourceType) error {
 			if err != nil {
 				return err
 			}
+			time.Sleep(50 * time.Millisecond)
 		}
 	}
 	go func() {
