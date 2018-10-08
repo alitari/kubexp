@@ -16,7 +16,7 @@ var configFile *string
 
 var useResourceFile = false
 
-var contextColors = []string{"Magenta", "White", "Cyan", "Blue"}
+var contextColors = []string{"Magenta", "Cyan", "Blue"}
 
 type configType struct {
 	isNew      bool
@@ -56,7 +56,7 @@ type viewType struct {
 	Template string
 }
 
-var clusterResourcesTemplate = `{{ "capacity:" | contextColorEmp }} {{ .Capacity.String | contextColor }}  {{ "cpu:" | contextColorEmp }} {{ .Requested.CPU.String | contextColor}}({{ .PercentCPU | contextColor }}) {{ "memory:" | contextColorEmp }} {{ .Requested.Memory.String | contextColor}}({{ .PercentMem | contextColor }})`
+var clusterResourcesTemplate = `{{ "capacity:" | contextColorEmp }} {{ .Capacity.String }}  {{ "cpu:" | contextColorEmp }} {{ .Requested.CPU.String }}({{ .PercentCPU }}) {{ "memory:" | contextColorEmp }} {{ .Requested.Memory.String }}({{ .PercentMem }})`
 
 var helpTemplate = colorizeText(fmt.Sprintf(`
      _  __    _         ___          _                 
@@ -151,8 +151,8 @@ var defaultResources = []resourceType{
 		Views: []viewType{
 			{
 				Name: "list",
-				Template: nameAgeColumns + `
-{{- header "Status" . (fcwe .status.conditions "status" "True" "type") | printf "%-8.8s " -}}
+				Template: `{{- header "Status" . (fcwe .status.conditions "status" "True" "type") | printf "%-8.8s " -}}
+` + nameAgeColumns + `
 {{- header "Age" . (age .metadata.creationTimestamp) | printf "%-8.8s " -}}
 {{- header "Version" . .status.nodeInfo.kubeletVersion | printf "%-10.10s " -}}
 {{- header "Internal-IP" . ( fcwe .status.addresses "type" "InternalIP" "address") | printf "%-18.18s " -}}
@@ -210,11 +210,12 @@ var defaultResources = []resourceType{
 		Views: []viewType{
 			{
 				Name: "list",
-				Template: nameAgeColumns + `
+				Template: `{{- header "Status" . ( .status.phase | blinkWhenChanged . "persistentvolumes" ) | printf "%-8.8s " -}}
+` + nameAgeColumns + `
 {{- header "Capacity" . .spec.capacity.storage | printf "%-12.12s " -}}
 {{- header "Accessmodes" . ( printArray .spec.accessModes) | printf "%-20.20s " -}}
 {{- header "Reclaimpolicy" . .spec.persistentVolumeReclaimPolicy | printf "%-15.15s " -}}
-{{- header "Status" . .status.phase | printf "%-8.8s " -}}
+
 {{- header "Claim" . ( printf "%v/%v" .spec.claimRef.namespace .spec.claimRef.name ) | printf "%-30.30s " -}}`,
 			},
 			infoView,
@@ -260,10 +261,6 @@ var defaultResources = []resourceType{
 			{
 				Name:     "list",
 				Template: nameAgeColumns,
-			},
-			viewType{
-				Name:     "info",
-				Template: labelsAndAnnoTemplate,
 			},
 			infoView,
 			yamlView,
@@ -340,7 +337,7 @@ No Data
 		Views: []viewType{
 			{
 				Name: "list",
-				Template: `{{- header "Status" . ( podStatus .status ) | printf "%-10.10s " | colorPhase -}}
+				Template: `{{- header "Status" . ( podStatus .status | blinkWhenChanged . "pods" ) | printf "%-10.10s " | colorPhase -}}
 ` + nameAgeColumns + `
 {{- header "PortForward" . ( portForwardPortsShort . )|  printf "%-6.6s " -}}
 {{- header "  R" . ( count ( fk .status.containerStatuses "ready" true )) | printf "%3.3s/" -}}
@@ -375,7 +372,7 @@ No Data
 		Views: []viewType{
 			{
 				Name: "list",
-				Template: `{{- header "Status" . ( status .spec.completions .status.succeeded ) | printf "%-10.10s " | colorPhase -}}
+				Template: `{{- header "Status" . (( status .spec.completions .status.succeeded ) | blinkWhenChanged . "jobs" ) | printf "%-10.10s " | colorPhase -}}
 ` + nameAgeColumns + `				
 {{- header "Desired" . .spec.completions | printf "%8.8s " -}}
 {{- header "Succ" . .status.succeeded | printf "%8.8s " -}}
@@ -392,7 +389,7 @@ No Data
 		Views: []viewType{
 			{
 				Name: "list",
-				Template: `{{- header "Status" . ( status .spec.jobTemplate.spec.completions .status.succeeded ) | printf "%-10.10s " | colorPhase -}}
+				Template: `{{- header "Status" . (( status .spec.jobTemplate.spec.completions .status.succeeded ) | blinkWhenChanged . "cronjobs" ) | printf "%-10.10s " | colorPhase -}}
 ` + nameAgeColumns + `
 {{- header "Schedule" . .spec.schedule | printf "%-20.20s " -}}
 {{- header "Last Scheduled" . .status.lastScheduleTime | printf "%-26.26s " -}}
@@ -407,7 +404,7 @@ No Data
 		Views: []viewType{
 			{
 				Name: "list",
-				Template: `{{- header "Status" . ( status .spec.replicas .status.readyReplicas ) | printf "%-10.10s " | colorPhase -}}
+				Template: `{{- header "Status" . (( status .spec.replicas .status.readyReplicas ) | blinkWhenChanged . "replicationcontrollers" ) | printf "%-10.10s " | colorPhase -}}
 ` + nameAgeColumns + `
 {{- header "Desired" . .spec.replicas | printf "%8.8s " -}}
 {{- header "Current" . .status.replicas | printf "%8.8s " -}}
@@ -423,7 +420,7 @@ No Data
 		Views: []viewType{
 			{
 				Name: "list",
-				Template: `{{- header "Status" . ( status .spec.replicas .status.readyReplicas ) | printf "%-10.10s " | colorPhase -}}
+				Template: `{{- header "Status" . (( status .spec.replicas .status.readyReplicas ) | blinkWhenChanged . "replicasets" ) | printf "%-10.10s " | colorPhase -}}
 ` + nameAgeColumns + `
 {{- header "Desired" . .spec.replicas | printf "%8.8s " -}}
 {{- header "Current" . .status.replicas | printf "%8.8s " -}}
@@ -450,7 +447,7 @@ No Data
 		Views: []viewType{
 			{
 				Name: "list",
-				Template: `{{- header "Status" . ( status .status.desiredNumberScheduled .status.numberReady ) | printf "%-10.10s " | colorPhase -}}
+				Template: `{{- header "Status" . (( status .status.desiredNumberScheduled .status.numberReady ) | blinkWhenChanged . "daemonsets" ) | printf "%-10.10s " | colorPhase -}}
 ` + nameAgeColumns + `
 {{- header "Desired" . .status.desiredNumberScheduled | printf "%8.8s " -}}
 {{- header "Current" . .status.currentNumberScheduled | printf "%8.8s " -}}
@@ -468,7 +465,7 @@ No Data
 		Views: []viewType{
 			{
 				Name: "list",
-				Template: `{{- header "Status" . ( status .spec.replicas .status.readyReplicas ) | printf "%-10.10s " | colorPhase -}}
+				Template: `{{- header "Status" . (( status .spec.replicas .status.readyReplicas ) | blinkWhenChanged . "deployments" ) | printf "%-10.10s " | colorPhase -}}
 ` + nameAgeColumns + `
 {{- header "Desired" . .spec.replicas | printf "%8.8s " -}}
 {{- header "Current" . .status.replicas | printf "%8.8s " -}}
@@ -483,7 +480,7 @@ No Data
 		Views: []viewType{
 			{
 				Name: "list",
-				Template: `{{- header "Status" . ( status .spec.replicas .status.readyReplicas ) | printf "%-10.10s " | colorPhase -}}
+				Template: `{{- header "Status" . (( status .spec.replicas .status.readyReplicas ) | blinkWhenChanged . "statefulsets" ) | printf "%-10.10s " | colorPhase -}}
 ` + nameAgeColumns + `
 {{- header "Desired" . .spec.replicas | printf "%8.8s " -}}
 {{- header "Current" . .status.replicas | printf "%8.8s " -}}

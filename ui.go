@@ -14,7 +14,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jroimartin/gocui"
+	"github.com/alitari/gocui"
 )
 
 /* local variables naming conventions:
@@ -54,6 +54,27 @@ var contextColorFunc = func(item interface{}) gocui.Attribute {
 	return strToColor(context.color)
 }
 
+var clusterChangeFooter = "*c*=change"
+var namespaceChangeFooter = "*n*=change"
+var categoryChangeFooter = "*r*=change category"
+var menuSelectFooter = "*←*,*→*=select"
+var listSelectFooter = "*↑*,*↓*=select"
+var pageSelectFooter = "*⭻*,*⭽*=select Page"
+var scrollLineFooter = "*↑*,*↓*=scroll up/down"
+var scrollPageFooter = "*⭻*,*⭽*=page previous/next"
+var scrollLeftRightFooter = "*Ctrl-a*=Scroll left *Ctrl-d*=Scroll right"
+var detailsViewFooter = "*RETURN*=show details"
+var backToListFooter = "*RETURN*=back to list"
+var setSelectionFooter = "*RETURN*=set"
+var setFileSelectionFooter = "*RETURN*=step in or set"
+var exitFooter = "*Ctrl-c*=exit"
+var delResourceFooter = "*DELETE*=delete resource"
+var podsFooter = "*u*=upload *d*=download *1-6*=exec container *p*=port forward"
+var scaleFooter = "*+*,*-*=scale up/down"
+var changeContainerFooter = "*Ctrl-o*=change container"
+var reloadFooter = "*SPACE*=reload"
+var helpFooter = "*h*=help"
+
 var currentState stateType
 
 func setState(state stateType) {
@@ -72,6 +93,10 @@ var initState = stateType{
 	},
 	exitFunc: func(toState stateType) {
 		clusterList.widget.items = toIfc(cfg.contexts)
+		// contextColor := strToColor(cfg.contexts[0].color)
+		// g.FrameFgColor = contextColor
+		// g.FrameBgColor = gocui.ColorBlack
+
 		err := backend.createWatches(cfg.resources)
 		if err != nil {
 			errorlog.Panicf("Can't connect to api server. url:%s, error: %v", backend.context.Cluster.URL, err)
@@ -86,6 +111,7 @@ var selectNsState = stateType{
 	name: "selectNsState",
 	enterFunc: func(fromState stateType) {
 		namespaceList.widget.focus = true
+		namespaceList.widget.footer = setSelectionFooter + " " + listSelectFooter
 	},
 	exitFunc: func(toState stateType) {
 		namespaceList.widget.focus = false
@@ -96,6 +122,7 @@ var selectContextState = stateType{
 	name: "selectContextState",
 	enterFunc: func(fromState stateType) {
 		clusterList.widget.focus = true
+		clusterList.widget.footer = setSelectionFooter + " " + listSelectFooter + " " + exitFooter
 	},
 	exitFunc: func(toState stateType) {
 		clusterList.widget.focus = false
@@ -116,11 +143,19 @@ var browseState = stateType{
 		resourceMenu.widget.visible = true
 		resourceItemsList.widget.visible = true
 		resourceItemsList.widget.focus = true
+		clusterList.widget.footer = clusterChangeFooter
+		namespaceList.widget.footer = namespaceChangeFooter
+		resourceMenu.widget.footer = menuSelectFooter + " " + categoryChangeFooter
+		updateResourceItemsListFooter()
+
 	},
 	exitFunc: func(fromState stateType) {
 		resourceItemsList.widget.focus = false
 		resourceItemsList.widget.visible = false
 		resourceMenu.widget.visible = false
+		clusterList.widget.footer = ""
+		namespaceList.widget.footer = ""
+
 	},
 }
 
@@ -129,14 +164,13 @@ var detailState = stateType{
 	enterFunc: func(fromState stateType) {
 		resourcesItemDetailsMenu.widget.items = resourceItemDetailsViews()
 		resourcesItemDetailsMenu.widget.selectedItem = 0
-
 		setResourceItemDetailsPart()
-
 		resourceItemDetailsWidget.visible = true
 		resourcesItemDetailsMenu.widget.visible = true
-
 		searchmodeWidget.visible = true
 		searchmodeWidget.active = true
+		resourcesItemDetailsMenu.widget.footer = menuSelectFooter
+		resourceItemDetailsWidget.footer = scrollLineFooter + " " + scrollLeftRightFooter + " " + scrollPageFooter + " " + backToListFooter
 	},
 	exitFunc: func(fromState stateType) {
 		resourceItemDetailsWidget.visible = false
@@ -152,6 +186,7 @@ var helpState = stateType{
 		helpWidget.active = true
 		helpWidget.visible = true
 		helpWidget.setContent(keyBindings, tpl("help", helpTemplate))
+		helpWidget.footer = backToListFooter + " " + scrollLineFooter
 	},
 	exitFunc: func(fromState stateType) {
 		helpWidget.active = false
@@ -167,6 +202,11 @@ var fileState = stateType{
 		details := resourceItemsList.widget.items[resourceItemsList.widget.selectedItem]
 		selectedContainerIndex = 0
 		containerNames = resItemContainers(details)
+		if len(containerNames) > 1 {
+			fileList.widget.footer = changeContainerFooter + " " + setFileSelectionFooter + " " + listSelectFooter + " " + exitFooter
+		} else {
+			fileList.widget.footer = setFileSelectionFooter + " " + listSelectFooter + " " + exitFooter
+		}
 	},
 	exitFunc: func(fromState stateType) {
 		fileList.widget.visible = false
@@ -355,6 +395,11 @@ func initGui() {
 		newResourceCategory()
 	}
 
+	ctx := cfg.contexts[clusterList.widget.selectedItem]
+	contextColor := strToColor(ctx.color)
+	g.FrameFgColor = contextColor
+	g.FrameBgColor = gocui.ColorBlack
+
 	if err := g.MainLoop(); err != nil && err != gocui.ErrQuit {
 		errorlog.Printf("error in mail loop: %v", err)
 	}
@@ -382,7 +427,10 @@ func selectedResource() resourceType {
 }
 
 func selectedResourceItemDetailsView() viewType {
-	return resourcesItemDetailsMenu.widget.items[resourcesItemDetailsMenu.widget.selectedItem].(viewType)
+	if len(resourcesItemDetailsMenu.widget.items) > resourcesItemDetailsMenu.widget.selectedItem {
+		return resourcesItemDetailsMenu.widget.items[resourcesItemDetailsMenu.widget.selectedItem].(viewType)
+	}
+	return resourcesItemDetailsMenu.widget.items[0].(viewType)
 }
 
 func selectedResourceItemName() string {
@@ -400,7 +448,9 @@ func selectedResourceItemNamespace() string {
 }
 
 func updateResourceItemDetailPart() {
-	//tracelog.Printf("update resource item details")
+	if g == nil {
+		return
+	}
 	g.Update(func(gui *gocui.Gui) error {
 		reloadResourceItemDetailsPart()
 		return nil
@@ -408,7 +458,9 @@ func updateResourceItemDetailPart() {
 }
 
 func updateResourceItemList(reset bool) {
-	tracelog.Printf("update resource")
+	if g == nil {
+		return
+	}
 	g.Update(func(gui *gocui.Gui) error {
 		if reset {
 			newResource()
@@ -444,16 +496,15 @@ func createWidgets() {
 
 	clusterList = newNlist("cluster", 1, 1, sepXAt2, 6)
 	clusterList.widget.expandable = true
-	clusterList.widget.title = "[C]luster"
+	clusterList.widget.title = "Cluster"
 	clusterList.widget.visible = true
 	clusterList.widget.frame = true
 	clusterList.widget.template = tpl("clusterTemplate", `{{ "Name:" | contextColorEmp }} {{ .Name | printf "%-20.20s" }}  {{ "URL:" | contextColorEmp }} {{ .Cluster.URL }}`)
-
 	clusterResourcesWidget = newTextWidget("clusterResources", "cluster resources", true, false, sepXAt2+2, 1, sepXAt-sepXAt2-1, 2)
 
 	namespaceList = newNlist("namespaces", sepXAt+2, 1, maxX-sepXAt-3, 10)
 	namespaceList.widget.expandable = true
-	namespaceList.widget.title = "[N]amespace"
+	namespaceList.widget.title = "Namespace"
 	namespaceList.widget.visible = true
 	namespaceList.widget.frame = true
 	namespaceList.widget.template = tpl("namespace", `{{.metadata.name | printf "%-50.50s" }}`)
@@ -461,7 +512,7 @@ func createWidgets() {
 
 	resourceMenu = newNmenu("resourcesMenu", 1, 4, maxX-2, 16)
 	resourceMenu.widget.visible = true
-	resourceMenu.widget.title = fmt.Sprintf("[R]esources - %s", resourceCategories[selectedResourceCategoryIndex])
+	resourceMenu.widget.title = fmt.Sprintf("Resources - %s", resourceCategories[selectedResourceCategoryIndex])
 	resourceMenu.widget.frame = true
 	resourceMenu.widget.template = tpl("resource", `{{ .ShortName }}`)
 
@@ -504,6 +555,27 @@ func createWidgets() {
 	{{- header "Time" . .time | printf "%-16.16s  " -}}
 	{{- header "Name" . .name | printf "%-40.40s" -}}`)
 	fileList.widget.headerFgColor = gocui.ColorDefault | gocui.AttrBold
+}
+
+func updateResourceItemsListFooter() {
+	resourceItemsList.widget.footer = delResourceFooter + " " + listSelectFooter + " " + detailsViewFooter + " " + reloadFooter + " " + helpFooter + " " + exitFooter
+	if resourceItemsList.widget.pc() > 1 {
+		resourceItemsList.widget.footer = pageSelectFooter + " " + resourceItemsList.widget.footer
+	}
+	switch selectedResource().Name {
+	case "pods":
+		resourceItemsList.widget.footer = podsFooter + " " + resourceItemsList.widget.footer
+	case "deployments":
+		fallthrough
+	case "replicationcontrollers":
+		fallthrough
+	case "replicasets":
+		fallthrough
+	case "daemonsets":
+		fallthrough
+	case "statefulsets":
+		resourceItemsList.widget.footer = scaleFooter + " " + resourceItemsList.widget.footer
+	}
 }
 
 func resourceItemDetailsViews() []interface{} {
@@ -586,7 +658,7 @@ func nextResourceCategory(offset int) {
 
 func newResourceCategory() {
 	resCat := resourceCategories[selectedResourceCategoryIndex]
-	resourceMenu.widget.title = fmt.Sprintf("[R]esources - %s", resCat)
+	resourceMenu.widget.title = fmt.Sprintf("Resources - %s", resCat)
 	namespaceList.widget.visible = resCat != "cluster/metadata"
 
 	resourceMenu.widget.selectedItem = 0
@@ -598,6 +670,7 @@ func newResourceCategory() {
 
 	resourceItemsList.widget.items = resItems
 	updateResourceItemsListTitle(selRes.Name)
+	updateResourceItemsListFooter()
 	resourceItemsList.widget.template = resourceListTpl(selRes)
 	if resourceItemsList.widget.selectedItem >= len(resourceItemsList.widget.items) {
 		resourceItemsList.widget.selectedItem = 0
@@ -608,6 +681,10 @@ func newContext() error {
 	ctx := cfg.contexts[clusterList.widget.selectedItem]
 	backend.closeWatches()
 	backend = newBackend(ctx)
+
+	contextColor := strToColor(ctx.color)
+	g.FrameFgColor = contextColor
+	g.FrameBgColor = gocui.ColorBlack
 
 	err := backend.createWatches(cfg.resources)
 	if err != nil {
@@ -798,6 +875,7 @@ func newResource() {
 	resourceItemsList.widget.template = resourceListTpl(selRes)
 	resourceItemsList.widget.selectedPage = 0
 	resourceItemsList.widget.selectedItem = 0
+	updateResourceItemsListFooter()
 }
 
 func updateResourceItemsListTitle(resourceItemName string) {
@@ -866,6 +944,13 @@ func setResourceItemDetailsPart() {
 		containerNames = resItemContainers(details)
 		backend.watchPodLogs(resItemNamespace(details), rname, containerNames[selectedContainerIndex])
 		tracelog.Printf("containerNames: %v", containerNames)
+		if len(containerNames) > 1 {
+			resourceItemDetailsWidget.footer = changeContainerFooter + " " + scrollLineFooter + " " + scrollLeftRightFooter + " " + scrollPageFooter + " " + backToListFooter
+		} else {
+			resourceItemDetailsWidget.footer = scrollLineFooter + " " + scrollLeftRightFooter + " " + scrollPageFooter + " " + backToListFooter
+		}
+	} else {
+		resourceItemDetailsWidget.footer = scrollLineFooter + " " + scrollLeftRightFooter + " " + scrollPageFooter + " " + backToListFooter
 	}
 	reloadResourceItemDetailsPart()
 }
@@ -950,92 +1035,93 @@ func unbindKeys() {
 }
 
 func bindKeys() {
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'h', mod: gocui.ModNone}, showHelpCommand)
-	bindKey(g, keyEventType{Viewname: helpWidget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, quitWidgetCommand)
-	bindKey(g, keyEventType{Viewname: helpWidget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, scrollDownHelpCommand)
-	bindKey(g, keyEventType{Viewname: helpWidget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, scrollUpHelpCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'h', mod: gocui.ModNone}, showHelpCommand)
+	bindKey(g, false, keyEventType{Viewname: helpWidget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, quitWidgetCommand)
+	bindKey(g, false, keyEventType{Viewname: helpWidget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, scrollDownHelpCommand)
+	bindKey(g, false, keyEventType{Viewname: helpWidget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, scrollUpHelpCommand)
 
-	bindKey(g, keyEventType{Viewname: errorWidget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, quitWidgetCommand)
+	bindKey(g, false, keyEventType{Viewname: errorWidget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, quitWidgetCommand)
 
-	bindKey(g, keyEventType{Viewname: confirmWidget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, quitWidgetCommand)
-	bindKey(g, keyEventType{Viewname: confirmWidget.name, Key: 'n', mod: gocui.ModNone}, quitWidgetCommand)
-	bindKey(g, keyEventType{Viewname: confirmWidget.name, Key: 'y', mod: gocui.ModNone}, executeConfirmCommand)
+	bindKey(g, false, keyEventType{Viewname: confirmWidget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, quitWidgetCommand)
+	bindKey(g, false, keyEventType{Viewname: confirmWidget.name, Key: 'n', mod: gocui.ModNone}, quitWidgetCommand)
+	bindKey(g, false, keyEventType{Viewname: confirmWidget.name, Key: 'y', mod: gocui.ModNone}, executeConfirmCommand)
 
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyCtrlC, mod: gocui.ModNone}, quitCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyArrowRight, mod: gocui.ModNone}, nextResourceCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyArrowLeft, mod: gocui.ModNone}, previousResourceCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextLineCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousLineCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyCtrlC, mod: gocui.ModNone}, quitCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyArrowRight, mod: gocui.ModNone}, nextResourceCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyArrowLeft, mod: gocui.ModNone}, previousResourceCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextLineCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousLineCommand)
 
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'c', mod: gocui.ModNone}, gotoSelectContextStateCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeySpace, mod: gocui.ModNone}, loadContextCommand)
-	// bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'C', mod: gocui.ModNone}, previousContextCommand)
-	// bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'f', mod: gocui.ModNone}, nextNamespaceCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'n', mod: gocui.ModNone}, gotoSelectNamespaceStateCommand)
-	// bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'F', mod: gocui.ModNone}, previousNamespaceCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, toggleResourceItemDetailsCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'r', mod: gocui.ModNone}, nextResourceCategoryCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextResourceItemListPageCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousResourceItemListPageCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'c', mod: gocui.ModNone}, gotoSelectContextStateCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeySpace, mod: gocui.ModNone}, loadContextCommand)
+	// bindKey(g,false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'C', mod: gocui.ModNone}, previousContextCommand)
+	// bindKey(g,false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'f', mod: gocui.ModNone}, nextNamespaceCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'n', mod: gocui.ModNone}, gotoSelectNamespaceStateCommand)
+	// bindKey(g,false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'F', mod: gocui.ModNone}, previousNamespaceCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, toggleResourceItemDetailsCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'r', mod: gocui.ModNone}, nextResourceCategoryCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextResourceItemListPageCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousResourceItemListPageCommand)
 
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyDelete, mod: gocui.ModNone}, deleteConfirmCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyDelete, mod: gocui.ModAlt}, deleteNoGracePeriodConfirmCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '+', mod: gocui.ModNone}, scaleUpCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '-', mod: gocui.ModNone}, scaleDownCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'm', mod: gocui.ModNone}, nameSortCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'a', mod: gocui.ModNone}, ageSortCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'x', mod: gocui.ModNone}, execShellCommand0)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '1', mod: gocui.ModNone}, execShellCommand0)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '2', mod: gocui.ModNone}, execShellCommand1)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '3', mod: gocui.ModNone}, execShellCommand2)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'X', mod: gocui.ModNone}, execBashCommand0)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '4', mod: gocui.ModNone}, execBashCommand0)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '5', mod: gocui.ModNone}, execBashCommand1)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: '6', mod: gocui.ModNone}, execBashCommand2)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'p', mod: gocui.ModNone}, portForwardSamePortCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'P', mod: gocui.ModNone}, portForwardCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyDelete, mod: gocui.ModNone}, deleteConfirmCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: gocui.KeyDelete, mod: gocui.ModAlt}, deleteNoGracePeriodConfirmCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: '+', mod: gocui.ModNone}, scaleUpCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: '-', mod: gocui.ModNone}, scaleDownCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'm', mod: gocui.ModNone}, nameSortCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'a', mod: gocui.ModNone}, ageSortCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'x', mod: gocui.ModNone}, execShellCommand0)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: '1', mod: gocui.ModNone}, execShellCommand0)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: '2', mod: gocui.ModNone}, execShellCommand1)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: '3', mod: gocui.ModNone}, execShellCommand2)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'X', mod: gocui.ModNone}, execBashCommand0)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: '4', mod: gocui.ModNone}, execBashCommand0)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: '5', mod: gocui.ModNone}, execBashCommand1)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: '6', mod: gocui.ModNone}, execBashCommand2)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'p', mod: gocui.ModNone}, portForwardSamePortCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'P', mod: gocui.ModNone}, portForwardCommand)
 
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowRight, mod: gocui.ModNone}, nextResourceItemDetailPartCommand)
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowLeft, mod: gocui.ModNone}, previousResourceItemDetailPartCommand)
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeySpace, mod: gocui.ModNone}, reloadResourceItemDetailPartCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowRight, mod: gocui.ModNone}, nextResourceItemDetailPartCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowLeft, mod: gocui.ModNone}, previousResourceItemDetailPartCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeySpace, mod: gocui.ModNone}, reloadResourceItemDetailPartCommand)
 
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlO, mod: gocui.ModNone}, nextContainerCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlO, mod: gocui.ModNone}, nextContainerCommand)
 
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, scrollDownCommand)
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, scrollUpCommand)
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlA, mod: gocui.ModNone}, scrollLeftCommand)
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlD, mod: gocui.ModNone}, scrollRightCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, scrollDownCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, scrollUpCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlA, mod: gocui.ModNone}, scrollLeftCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlD, mod: gocui.ModNone}, scrollRightCommand)
 
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, pageDownCommand)
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, pageUpCommand)
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyHome, mod: gocui.ModNone}, homeCommand)
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyEnd, mod: gocui.ModNone}, endCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, pageDownCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, pageUpCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyHome, mod: gocui.ModNone}, homeCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyEnd, mod: gocui.ModNone}, endCommand)
 
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, toggleResourceItemDetailsCommand)
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlN, mod: gocui.ModNone}, findNextCommand)
-	bindKey(g, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlP, mod: gocui.ModNone}, findPreviousCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, toggleResourceItemDetailsCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlN, mod: gocui.ModNone}, findNextCommand)
+	bindKey(g, false, keyEventType{Viewname: searchmodeWidget.name, Key: gocui.KeyCtrlP, mod: gocui.ModNone}, findPreviousCommand)
 
-	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, selectNamespaceLoadingCommand)
-	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousNamespaceCommand)
-	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextNamespaceCommand)
-	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextNamespacePageCommand)
-	bindKey(g, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousNamespacePageCommand)
+	bindKey(g, false, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, selectNamespaceLoadingCommand)
+	bindKey(g, false, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousNamespaceCommand)
+	bindKey(g, false, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextNamespaceCommand)
+	bindKey(g, false, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextNamespacePageCommand)
+	bindKey(g, false, keyEventType{Viewname: namespaceList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousNamespacePageCommand)
 
-	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, loadContextCommand)
-	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousContextCommand)
-	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextContextCommand)
-	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextContextPageCommand)
-	bindKey(g, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousContextPageCommand)
+	bindKey(g, false, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, loadContextCommand)
+	bindKey(g, false, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousContextCommand)
+	bindKey(g, false, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextContextCommand)
+	bindKey(g, false, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextContextPageCommand)
+	bindKey(g, false, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousContextPageCommand)
+	bindKey(g, false, keyEventType{Viewname: clusterList.widget.name, Key: gocui.KeyCtrlC, mod: gocui.ModNone}, quitWidgetCommand)
 
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'u', mod: gocui.ModNone}, uploadFileCommand)
-	bindKey(g, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'd', mod: gocui.ModNone}, downloadFileCommand)
-	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, gotoFileCommand)
-	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousFileCommand)
-	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextFileCommand)
-	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextFilePageCommand)
-	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousFilePageCommand)
-	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyCtrlO, mod: gocui.ModNone}, nextContainerFiletransferCommand)
-	bindKey(g, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyCtrlC, mod: gocui.ModNone}, quitWidgetCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'u', mod: gocui.ModNone}, uploadFileCommand)
+	bindKey(g, false, keyEventType{Viewname: resourceItemsList.widget.name, Key: 'd', mod: gocui.ModNone}, downloadFileCommand)
+	bindKey(g, false, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyEnter, mod: gocui.ModNone}, gotoFileCommand)
+	bindKey(g, false, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyArrowUp, mod: gocui.ModNone}, previousFileCommand)
+	bindKey(g, false, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyArrowDown, mod: gocui.ModNone}, nextFileCommand)
+	bindKey(g, false, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgdn, mod: gocui.ModNone}, nextFilePageCommand)
+	bindKey(g, false, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyPgup, mod: gocui.ModNone}, previousFilePageCommand)
+	bindKey(g, false, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyCtrlO, mod: gocui.ModNone}, nextContainerFiletransferCommand)
+	bindKey(g, false, keyEventType{Viewname: fileList.widget.name, Key: gocui.KeyCtrlC, mod: gocui.ModNone}, quitWidgetCommand)
 
 }
 

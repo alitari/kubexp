@@ -53,14 +53,9 @@ func (s *nameSorterType) getElements() []interface{} {
 }
 
 func (s *nameSorterType) Less(i, j int) bool {
-	iName := resItemName(s.elements[i])
-	jName := resItemName(s.elements[j])
-	var res bool
-	if len(iName) > 0 && len(jName) > 0 {
-		res = strings.Compare(iName, jName) < 0
-	} else {
-		res = i < j
-	}
+	iName := fmt.Sprintf("%s/%s", resItemName(s.elements[i]), resItemNamespace(s.elements[i]))
+	jName := fmt.Sprintf("%s/%s", resItemName(s.elements[j]), resItemNamespace(s.elements[j]))
+	res := strings.Compare(iName, jName) < 0
 	return (s.ascending && res) || (!s.ascending && !res)
 }
 
@@ -101,14 +96,25 @@ func (s *timeSorterType) Less(i, j int) bool {
 	itimeStr := resItemCreationTimestamp(s.elements[i])
 	jtimeStr := resItemCreationTimestamp(s.elements[j])
 	var res bool
-	if len(itimeStr) > 0 && len(jtimeStr) > 0 {
+	if len(itimeStr) > 0 && len(jtimeStr) > 0 && jtimeStr != itimeStr {
 		itime := totime(itimeStr)
 		jtime := totime(jtimeStr)
-		res = jtime.After(itime)
+		if itime.Equal(jtime) {
+			res = true
+		} else {
+			res = jtime.After(itime)
+		}
 	} else {
-		res = i < j
+		iName := fmt.Sprintf("%s/%s", resItemName(s.elements[i]), resItemNamespace(s.elements[i]))
+		jName := fmt.Sprintf("%s/%s", resItemName(s.elements[j]), resItemNamespace(s.elements[j]))
+		res = strings.Compare(iName, jName) < 0
 	}
 	return (s.ascending && res) || (!s.ascending && !res)
+}
+
+type changedObjType struct {
+	id         string
+	changeTime time.Time
 }
 
 type watchType struct {
@@ -117,14 +123,18 @@ type watchType struct {
 }
 
 type backendType struct {
-	context              contextType
-	resItems             map[string][]interface{}
-	podLogs              []byte
-	watches              map[string]*watchType
-	sorter               sorterType
-	restExecutor         func(httpMethod, url, body string, timout int) (*http.Response, error)
-	clusterLivenessCheck <-chan time.Time
-	clusterLivenessDone  chan bool
+	context             contextType
+	resItems            map[string][]interface{}
+	podLogs             []byte
+	watches             map[string]*watchType
+	sorter              sorterType
+	restExecutor        func(httpMethod, url, body string, timout int) (*http.Response, error)
+	updateLoop          <-chan time.Time
+	lastLivenessCheck   time.Time
+	clusterLivenessDone chan bool
+	changedObjList      []changedObjType
+	changedObjSet       map[string]bool
+	blink               bool
 }
 
 func newBackend(context contextType) *backendType {
@@ -163,9 +173,12 @@ func newBackend(context contextType) *backendType {
 			return response, err
 		},
 
-		sorter:               &nameSorterType{ascending: true},
-		clusterLivenessCheck: time.NewTicker(time.Duration(5) * time.Second).C,
-		clusterLivenessDone:  make(chan bool),
+		sorter:              &nameSorterType{ascending: true},
+		updateLoop:          time.NewTicker(time.Duration(250) * time.Millisecond).C,
+		clusterLivenessDone: make(chan bool),
+		changedObjList:      []changedObjType{},
+		changedObjSet:       map[string]bool{},
+		blink:               true,
 	}
 }
 
@@ -206,21 +219,30 @@ func (b *backendType) createWatches(resources []resourceType) error {
 			if err != nil {
 				return err
 			}
+			time.Sleep(50 * time.Millisecond)
 		}
 	}
 	go func() {
 		for {
 			select {
-			case <-b.clusterLivenessCheck:
-				err := b.availabiltyCheck()
-				if err != nil {
-					for _, w := range b.watches {
-						w.online = false
+			case <-b.updateLoop:
+				now := time.Now()
+				if (now.Sub(b.lastLivenessCheck)).Seconds() > 10 {
+					b.lastLivenessCheck = now
+					err := b.availabiltyCheck()
+					if err != nil {
+						for _, w := range b.watches {
+							w.online = false
+						}
+						errorlog.Printf("cluster heart beat not ok: %v", err)
 					}
-					errorlog.Printf("cluster heart beat no ok: %v", err)
+				}
+
+				b.updateChangedObjList()
+				b.blink = !b.blink
+
+				if currentState.name == "browseState" {
 					updateResourceItemList(false)
-				} else {
-					tracelog.Printf("cluster heart beat ok")
 				}
 
 			case <-b.clusterLivenessDone:
@@ -231,6 +253,24 @@ func (b *backendType) createWatches(resources []resourceType) error {
 	}()
 
 	return nil
+}
+
+func (b *backendType) updateChangedObjList() {
+	var k = 0
+	for i, el := range b.changedObjList {
+		chgTime := el.changeTime
+		if time.Now().Sub(chgTime).Seconds() < 5 {
+			k = i
+			break
+		}
+
+	}
+	newList := b.changedObjList[k:]
+	for _, el := range b.changedObjList[:k] {
+		b.changedObjSet[el.id] = false
+	}
+
+	b.changedObjList = newList
 }
 
 func (b *backendType) closeWatches0(filter func(string) bool) {
@@ -309,7 +349,7 @@ func (b *backendType) handleResponse(httpMethod, url, reqBody string, resp *http
 }
 
 func (b *backendType) availabiltyCheck() error {
-	url := fmt.Sprintf("%s/%s/%s", b.context.Cluster.URL, "api/v1", "nodes")
+	url := fmt.Sprintf("%s/%s/%s", b.context.Cluster.URL, "api/v1", "namespaces")
 	resp, err := b.restExecutor(http.MethodGet, url, "", restCallTimeout)
 	_, err = b.handleResponse(http.MethodGet, url, "", resp, err)
 	return err
@@ -391,9 +431,6 @@ func (b *backendType) watch0(urlPrefix, urlPostfix, queryParam string) error {
 					showError(mess, err)
 				}
 				b.watches[urlPostfix].online = false
-				if !strings.HasSuffix(urlPostfix, "log") {
-					updateResourceItemList(false)
-				}
 				break
 			} else {
 				b.watches[urlPostfix].online = true
@@ -438,13 +475,17 @@ func (b *backendType) updateResourceItems(resName string, watchBytes []byte) {
 		if resName == "namespaces" {
 			updateNamespaces()
 		}
+		chngObj := changedObjType{id: fmt.Sprintf("%s/%s/%s", resItemNamespace(watchObj), resName, resItemName(watchObj)), changeTime: time.Now()}
+
+		b.changedObjList = append(b.changedObjList, chngObj)
+		b.changedObjSet[chngObj.id] = true
 
 		if len(resourceMenu.widget.items) > 0 && len(namespaceList.widget.items) > 0 {
 			selRes := selectedResource()
 			selNs := selectedNamespace()
 
-			if currentState.name == "browseState" && selRes.Name == resName && (selNs == "*ALL*" || selNs == resItemNamespace(watchObj)) {
-				updateResourceItemList(watch["type"] == "DELETED" || watch["type"] == "ADDED")
+			if currentState.name == "browseState" && selRes.Name == resName && (selNs == "*ALL*" || selNs == resItemNamespace(watchObj)) && (watch["type"] == "DELETED" || watch["type"] == "ADDED") {
+				updateResourceItemList(true)
 			}
 		}
 	} else {

@@ -10,7 +10,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/jroimartin/gocui"
+	"github.com/alitari/gocui"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,7 +44,7 @@ func Test_TextWidgetVisible(t *testing.T) {
 	v, err := g.View(w.name)
 	require.Nil(err, "err should not be there")
 	require.NotNil(v, "view should be there")
-	require.Equal(w.title+"    [col:0 line:0/0]", v.Title)
+	require.Equal(w.title+"     col:0 line:0/0", v.Title)
 
 	ox, oy := v.Origin()
 	require.Equal(0, oy)
@@ -69,7 +69,7 @@ func Test_TextWidgetVisibleWithText(t *testing.T) {
 	v, err := g.View(w.name)
 	require.Nil(err, "err should not be there")
 	require.NotNil(v, "view should be there")
-	require.Equal(w.title+"    [col:0 line:0/3]", v.Title)
+	require.Equal(w.title+"     col:0 line:0/3", v.Title)
 
 	l, err := v.Line(0)
 	require.Nil(err, "err should not be there")
@@ -110,7 +110,7 @@ func Test_TextWidgetActive(t *testing.T) {
 	v, err := g.View(w.name)
 	require.Nil(err, "err should not be there")
 	require.NotNil(v, "view should be there")
-	require.Equal(w.title+"    [col:0 line:0/0]", v.Title)
+	require.Equal(w.title+"     col:0 line:0/0", v.Title)
 	require.Equal(v, g.CurrentView())
 }
 

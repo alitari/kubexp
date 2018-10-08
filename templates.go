@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/jroimartin/gocui"
+	"github.com/alitari/gocui"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -94,9 +94,10 @@ var templateFuncMap = template.FuncMap{
 	"whiteEmp": colorWhiteEmp,
 	"whiteInv": colorWhiteInverse,
 
-	"contextColor":    colorContext,
-	"contextColorEmp": colorContextEmp,
-	"colorPhase":      colorPhase,
+	"contextColor":     colorContext,
+	"contextColorEmp":  colorContextEmp,
+	"colorPhase":       colorPhase,
+	"blinkWhenChanged": blinkWhenChanged,
 }
 
 func header(header string, rootVal, val interface{}) interface{} {
@@ -615,7 +616,7 @@ func keyString(keyEvent interface{}) string {
 		case gocui.KeyTab:
 			keyStr = "Tab"
 		case gocui.KeyArrowDown:
-			keyStr = "ArrowDown"
+			keyStr = "↓"
 		case gocui.KeyArrowRight:
 			keyStr = "ArrowRight"
 		case gocui.KeyArrowLeft:
@@ -654,6 +655,8 @@ func keyString(keyEvent interface{}) string {
 			} else {
 				keyStr = "Delete"
 			}
+		default:
+			keyStr = fmt.Sprintf("%c", k)
 		}
 
 	case rune:
@@ -744,5 +747,18 @@ func filterArray(it interface{}, f func(item interface{}) bool) interface{} {
 }
 
 func printMap(it interface{}) string {
-	return stripMap(fmt.Sprintf("%s", it))
+	return printArray(keys(it))
+}
+
+func isObjInChangedList(it interface{}, resName string) bool {
+	id := fmt.Sprintf("%s/%s/%s", resItemNamespace(it), resName, resItemName(it))
+	res := backend.changedObjSet[id]
+	return res
+}
+
+func blinkWhenChanged(it interface{}, resName string, text string) string {
+	if isObjInChangedList(it, resName) && backend.blink {
+		return strings.Repeat(" ", len(text))
+	}
+	return text
 }

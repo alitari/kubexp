@@ -95,8 +95,8 @@ func Test_podResources(t *testing.T) {
 
 func Test_printMap(t *testing.T) {
 	m := map[string]interface{}{"alex": "Hello", "bread": "egg"}
-	checkContains(t, printMap(m), "bread:egg")
-	checkContains(t, printMap(m), "alex:Hello")
+	checkContains(t, printMap(m), "bread")
+	checkContains(t, printMap(m), "alex")
 }
 
 // func Test_helpTemplate(t *testing.T) {
