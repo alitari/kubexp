@@ -247,6 +247,9 @@ func usageOfCluster() (ResourcesDef, ResourcesDef) {
 func resourcesOfCluster() (NodeResourcesDef, NodeResourcesDef) {
 	nodeType := cfg.resourcesOfName("nodes")
 	nodes := backend.resourceItems("", nodeType)
+	if len(nodes) < 1 {
+		return NodeResourcesDef{}, NodeResourcesDef{}
+	}
 	rCap, rAllo := resourcesOfNode(nodes[0])
 	for _, n := range nodes[1:] {
 		cap, allo := resourcesOfNode(n)
