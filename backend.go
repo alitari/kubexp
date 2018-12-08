@@ -159,7 +159,9 @@ func newBackend(context contextType) *backendType {
 				errorlog.Printf("can't create request url: %s, error: %v", url, err)
 				return nil, err
 			}
-			req.Header.Set("Authorization", "Bearer "+context.user.token)
+			if !strings.HasPrefix(url, "http://127.0.0.1") && !strings.HasPrefix(url, "http://localhost") {
+				req.Header.Set("Authorization", "Bearer "+context.user.token)
+			}
 			if httpMethod == http.MethodPatch {
 				req.Header.Add("Content-Type", "application/strategic-merge-patch+json")
 				req.Header.Add("Accept", "*/*")
