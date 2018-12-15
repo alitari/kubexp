@@ -848,7 +848,7 @@ func (c *configType) createContexts() *configType {
 			}
 		}
 		if !skip {
-			colorIndex := len(cs) % 4
+			colorIndex := len(cs) % 3
 			ct.color = contextColors[colorIndex]
 			cs = append(cs, ct)
 			mess = fmt.Sprintf("created context no %d with name '%s' ", i+1, ct.Name)
