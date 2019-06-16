@@ -5,7 +5,7 @@
 
 kubexp is a console user interface for [kubernetes](https://kubernetes.io/).
 
-![drwing](./pics/brwsr.png)
+![drwing](./pics/brwsr.PNG)
 
 ## Features
 
