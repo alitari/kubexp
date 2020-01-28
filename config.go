@@ -416,7 +416,7 @@ No Data
 			yamlView,
 			jsonView,
 		}},
-	{Name: "replicasets", APIPrefix: "apis/apps/v1beta2", ShortName: "rs", Category: "workloads", Namespace: true, Watch: true,
+	{Name: "replicasets", APIPrefix: "apis/apps/v1", ShortName: "rs", Category: "workloads", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -443,7 +443,7 @@ No Data
 			yamlView,
 			jsonView,
 		}},
-	{Name: "daemonsets", APIPrefix: "apis/extensions/v1beta1", ShortName: "ds", Category: "workloads", Namespace: true, Watch: true,
+	{Name: "daemonsets", APIPrefix: "apis/apps/v1", ShortName: "ds", Category: "workloads", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -461,7 +461,7 @@ No Data
 			jsonView,
 		}},
 	//NAME                                       DESIRED   CURRENT   UP-TO-DATE   AVAILABLE   AGE
-	{Name: "deployments", APIPrefix: "apis/extensions/v1beta1", ShortName: "deploy", Category: "workloads", Namespace: true, Watch: true,
+	{Name: "deployments", APIPrefix: "apis/apps/v1", ShortName: "deploy", Category: "workloads", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -476,7 +476,7 @@ No Data
 			yamlView,
 			jsonView,
 		}},
-	{Name: "statefulsets", APIPrefix: "apis/apps/v1beta1", ShortName: "statefulsets", Category: "workloads", Namespace: true, Watch: true,
+	{Name: "statefulsets", APIPrefix: "apis/apps/v1", ShortName: "statefulsets", Category: "workloads", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
@@ -519,7 +519,7 @@ No Data
 			jsonView,
 		}},
 	//NAME           POD-SELECTOR   AGE
-	{Name: "networkpolicies", APIPrefix: "apis/extensions/v1beta1", ShortName: "netpol", Category: "namespace/metadata", Namespace: true, Watch: true,
+	{Name: "networkpolicies", APIPrefix: "apis/networking.k8s.io/v1", ShortName: "netpol", Category: "namespace/metadata", Namespace: true, Watch: true,
 		Views: []viewType{
 			{
 				Name: "list",
